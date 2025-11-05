@@ -40,6 +40,8 @@ const SortableFolder = ({ folder, onToggle, onRename, onDelete, onAddGrid, onGri
               onKeyPress={(e) => e.key === 'Enter' && handleSave()}
               onBlur={handleSave}
               onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              data-no-dnd="true"
               className="folder-name-input"
               autoFocus
             />
@@ -48,7 +50,14 @@ const SortableFolder = ({ folder, onToggle, onRename, onDelete, onAddGrid, onGri
           )}
         </button>
         <div className="folder-actions">
-          <button onClick={() => onAddGrid(folder.id)} className="icon-btn" title="Add Grid">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddGrid(folder.id);
+            }}
+            className="icon-btn"
+            title="Add Grid"
+          >
             <Icon icon="plus" size={14} />
           </button>
           <button 
@@ -102,14 +111,15 @@ const SortableGrid = ({ grid, folderId, isActive, onSelect, onRename, onDelete }
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
+    <div
+      ref={setNodeRef}
+      style={style}
       className={`sortable-grid group ${isActive ? 'active' : ''}`}
-      {...attributes} 
+      {...attributes}
       {...listeners}
+      onClick={() => onSelect(grid.id)}
     >
-      <button onClick={() => onSelect(grid.id)} className="grid-button">
+      <div className="grid-button">
         <Icon icon="grid-3x3" size={14} />
         {isEditing ? (
           <input
@@ -119,14 +129,16 @@ const SortableGrid = ({ grid, folderId, isActive, onSelect, onRename, onDelete }
             onKeyPress={(e) => e.key === 'Enter' && handleSave()}
             onBlur={handleSave}
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            data-no-dnd="true"
             className="grid-name-input"
             autoFocus
           />
         ) : (
           <span className="grid-name">{grid.name}</span>
         )}
-      </button>
-      <div className="grid-actions">
+      </div>
+      <div className="grid-actions" onClick={(e) => e.stopPropagation()}>
         <button 
           onClick={(e) => {
             e.stopPropagation();
@@ -172,6 +184,14 @@ export const Sidebar = ({
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+      // Custom activation to prevent drag from inputs
+      onActivation: (event) => {
+        // Don't start drag if clicking on an element with data-no-dnd attribute
+        const target = event.event.target;
+        if (target.closest && target.closest('[data-no-dnd="true"]')) {
+          return false;
+        }
       },
     })
   );
