@@ -398,24 +398,15 @@ function App() {
             </div>
 
             <div className="tools-section">
-              {trainingMode ? (
-                // Training mode panels
-                showResults ? (
-                  <TrainingResults
-                    sessionStats={sessionStats}
-                    onTryAgain={tryAgain}
-                    onExit={exitTraining}
-                  />
-                ) : (
-                  <TrainingControls
-                    onSubmit={submitAttempt}
-                    onReset={resetAttempt}
-                    elapsedTime={elapsedTime}
-                    userAttemptCount={Object.values(userAttempt).filter(v => v && v !== 'default').length}
-                  />
-                )
+              {trainingMode && showResults ? (
+                // Training mode - Results view
+                <TrainingResults
+                  sessionStats={sessionStats}
+                  onTryAgain={tryAgain}
+                  onExit={exitTraining}
+                />
               ) : (
-                // Normal mode panels
+                // Normal mode OR Training mode (before submission)
                 <>
               <div className="panel">
                 <h2 className="panel-title">Paint Tools</h2>
@@ -530,6 +521,7 @@ function App() {
                 <button onClick={clearAll} className="clear-btn">Clear All</button>
               </div>
 
+              {!trainingMode && (
               <div className="panel">
                 <h2 className="panel-title">Range Statistics</h2>
                 <div className="stats-main">
@@ -583,6 +575,16 @@ function App() {
                   </div>
                 </div>
               </div>
+              )}
+
+              {trainingMode && !showResults && (
+                <TrainingControls
+                  onSubmit={submitAttempt}
+                  onReset={resetAttempt}
+                  elapsedTime={elapsedTime}
+                  userAttemptCount={Object.values(userAttempt).filter(v => v && v !== 'default').length}
+                />
+              )}
               </>
               )}
             </div>
