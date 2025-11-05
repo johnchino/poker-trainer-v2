@@ -43,17 +43,18 @@ export const useTrainingMode = (user, currentGrid, folders) => {
     }
 
     // Initialize training mode
+    const now = Date.now();
     setTrainingMode(true);
     setTrainingGridData({ ...gridData, folderId });
     setUserAttempt({});
     setShowResults(false);
     setSessionStats(null);
-    setStartTime(Date.now());
+    setStartTime(now);
     setElapsedTime(0);
 
     // Start timer
     const timerInterval = setInterval(() => {
-      setElapsedTime(Math.floor((Date.now() - Date.now()) / 1000));
+      setElapsedTime(Math.floor((Date.now() - now) / 1000));
     }, 1000);
 
     // Store interval ID for cleanup
@@ -269,10 +270,11 @@ export const useTrainingMode = (user, currentGrid, folders) => {
    * Try the same grid again
    */
   const tryAgain = useCallback(() => {
+    const now = Date.now();
     setUserAttempt({});
     setShowResults(false);
     setSessionStats(null);
-    setStartTime(Date.now());
+    setStartTime(now);
     setElapsedTime(0);
 
     // Restart timer
@@ -280,7 +282,7 @@ export const useTrainingMode = (user, currentGrid, folders) => {
       clearInterval(window.trainingTimerInterval);
     }
     const timerInterval = setInterval(() => {
-      setElapsedTime(Math.floor((Date.now() - Date.now()) / 1000));
+      setElapsedTime(Math.floor((Date.now() - now) / 1000));
     }, 1000);
     window.trainingTimerInterval = timerInterval;
   }, []);

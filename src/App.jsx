@@ -505,7 +505,7 @@ function App() {
                             style={{ backgroundColor: mixedColor.color2 }}
                             title="Change Second Color"
                           ></button>
-                          <button onClick={() => deleteMixedColor(mixedColor.id)} className="icon-btn-delete" title="Delete">
+                          <button onClick={() => deleteMixedColor(mixedColor.id)} className="icon-btn-hidden icon-btn-delete" title="Delete">
                             <Icon icon="x" size={16} />
                           </button>
                         </div>
