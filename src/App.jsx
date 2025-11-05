@@ -6,6 +6,9 @@ import { Sidebar } from './components/Sidebar';
 import { PokerGrid } from './components/PokerGrid';
 import { ColorPicker } from './components/ColorPicker';
 import { Icon } from './components/Icons';
+import { useTrainingMode } from './hooks/useTrainingMode';
+import { TrainingControls } from './components/TrainingControls';
+import { TrainingResults } from './components/TrainingResults';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -30,6 +33,22 @@ function App() {
   const [paintMode, setPaintMode] = useState('solid');
   const [selectedMixedColor, setSelectedMixedColor] = useState('mixed1');
   const [colorPickerTarget, setColorPickerTarget] = useState(null);
+
+  // Training mode hook
+  const {
+    trainingMode,
+    trainingGridData,
+    userAttempt,
+    showResults,
+    sessionStats,
+    elapsedTime,
+    startTraining,
+    submitAttempt,
+    resetAttempt,
+    tryAgain,
+    exitTraining,
+    setUserAttempt
+  } = useTrainingMode(user, currentGrid, folders);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -341,16 +360,28 @@ function App() {
         {currentGrid ? (
           <div className="content-wrapper">
             <div className="grid-section">
-              <h1 className="grid-title">{currentGridData?.name || 'Grid'}</h1>
+              <div className="grid-header">
+                <h1 className="grid-title">{currentGridData?.name || 'Grid'}</h1>
+                <button
+                  onClick={trainingMode ? exitTraining : startTraining}
+                  className={`training-toggle-btn ${trainingMode ? 'active' : ''}`}
+                  title={trainingMode ? 'Exit Training Mode' : 'Start Training Mode'}
+                >
+                  <Icon icon="brain" size={16} />
+                  <span>{trainingMode ? 'Exit Training' : 'Practice'}</span>
+                </button>
+              </div>
               <PokerGrid
-                cellStates={getCurrentCellStates()}
-                onCellStatesChange={updateCurrentCellStates}
+                cellStates={trainingMode ? userAttempt : getCurrentCellStates()}
+                onCellStatesChange={trainingMode ? setUserAttempt : updateCurrentCellStates}
                 colors={colors}
                 mixedColors={mixedColors}
                 paintMode={paintMode}
                 selectedColor={selectedColor}
                 selectedMixedColor={selectedMixedColor}
                 simpleView={simpleView}
+                comparisonMode={trainingMode && showResults}
+                correctAnswers={trainingGridData?.cellStates || {}}
               />
               <div className="grid-info">
                 <div className="grid-legend">
@@ -367,6 +398,25 @@ function App() {
             </div>
 
             <div className="tools-section">
+              {trainingMode ? (
+                // Training mode panels
+                showResults ? (
+                  <TrainingResults
+                    sessionStats={sessionStats}
+                    onTryAgain={tryAgain}
+                    onExit={exitTraining}
+                  />
+                ) : (
+                  <TrainingControls
+                    onSubmit={submitAttempt}
+                    onReset={resetAttempt}
+                    elapsedTime={elapsedTime}
+                    userAttemptCount={Object.values(userAttempt).filter(v => v && v !== 'default').length}
+                  />
+                )
+              ) : (
+                // Normal mode panels
+                <>
               <div className="panel">
                 <h2 className="panel-title">Paint Tools</h2>
                 <div className="colors-list">
@@ -533,6 +583,8 @@ function App() {
                   </div>
                 </div>
               </div>
+              </>
+              )}
             </div>
           </div>
         ) : (

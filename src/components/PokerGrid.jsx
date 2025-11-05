@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getCellComparisonClass, getCellComparisonColor } from '../utils/trainingHelpers';
 
 const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 
@@ -20,15 +21,17 @@ const generateHands = () => {
   return hands;
 };
 
-export const PokerGrid = ({ 
-  cellStates, 
-  onCellStatesChange, 
-  colors, 
+export const PokerGrid = ({
+  cellStates,
+  onCellStatesChange,
+  colors,
   mixedColors,
   paintMode,
   selectedColor,
   selectedMixedColor,
-  simpleView 
+  simpleView,
+  comparisonMode = false,
+  correctAnswers = {}
 }) => {
   const hands = generateHands();
   const [isDrawing, setIsDrawing] = useState(false);
@@ -71,16 +74,33 @@ export const PokerGrid = ({
   };
 
   const getCellStyle = (hand) => {
+    // In comparison mode, use special colors
+    if (comparisonMode) {
+      const comparisonColor = getCellComparisonColor(hand, correctAnswers, cellStates, colors, mixedColors);
+      if (comparisonColor) {
+        // Check if it's a gradient (mixed color)
+        if (comparisonColor.startsWith('linear-gradient')) {
+          return { background: comparisonColor };
+        } else {
+          return { backgroundColor: comparisonColor };
+        }
+      }
+      return {};
+    }
+
+    // Normal mode
     const state = cellStates[hand] || 'default';
     if (state === 'default') return {};
-    
+
     const mixedColor = mixedColors.find(m => m.id === state);
     if (mixedColor) {
+      const color1 = colors.find(c => c.id === mixedColor.color1)?.color || '#ccc';
+      const color2 = colors.find(c => c.id === mixedColor.color2)?.color || '#ccc';
       return {
-        background: `linear-gradient(135deg, ${mixedColor.color1} 0%, ${mixedColor.color1} 50%, ${mixedColor.color2} 50%, ${mixedColor.color2} 100%)`
+        background: `linear-gradient(135deg, ${color1} 0%, ${color1} 50%, ${color2} 50%, ${color2} 100%)`
       };
     }
-    
+
     const color = colors.find(c => c.id === state);
     if (color) return { backgroundColor: color.color };
     return {};
@@ -97,14 +117,19 @@ export const PokerGrid = ({
               const suffix = simpleView ? '' : (hand.endsWith('s') ? 's' : hand.endsWith('o') ? 'o' : '');
               const hasColor = cellStates[hand] && cellStates[hand] !== 'default';
               const textOpacity = hasColor ? 'opacity-100' : 'opacity-40';
-              
+
+              // Get comparison class if in comparison mode
+              const comparisonClass = comparisonMode
+                ? getCellComparisonClass(hand, correctAnswers, cellStates)
+                : '';
+
               return (
-                <button 
-                  key={`${i}-${j}`} 
-                  onMouseDown={() => handleMouseDown(hand)} 
+                <button
+                  key={`${i}-${j}`}
+                  onMouseDown={() => handleMouseDown(hand)}
                   onMouseEnter={() => handleMouseEnter(hand)}
                   style={getCellStyle(hand)}
-                  className={`poker-cell ${getCellColor(hand)}`}
+                  className={`poker-cell ${getCellColor(hand)} ${comparisonClass}`}
                 >
                   {isCenterPair && simpleView ? (
                     <svg width="20" height="20" viewBox="0 0 20 20" className={textOpacity}>
