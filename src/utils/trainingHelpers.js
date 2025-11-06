@@ -138,8 +138,8 @@ const getColorValue = (colorId, colors, mixedColors) => {
   // Check mixed colors
   const mixedColor = mixedColors.find(c => c.id === colorId);
   if (mixedColor) {
-    const color1 = colors.find(c => c.id === mixedColor.color1)?.color || '#ccc';
-    const color2 = colors.find(c => c.id === mixedColor.color2)?.color || '#ccc';
+    const color1 = mixedColor.color1;
+    const color2 = mixedColor.color2;
     return `linear-gradient(135deg, ${color1} 50%, ${color2} 50%)`;
   }
 

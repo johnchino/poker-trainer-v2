@@ -94,8 +94,8 @@ export const PokerGrid = forwardRef(({
 
     const mixedColor = mixedColors.find(m => m.id === state);
     if (mixedColor) {
-      const color1 = colors.find(c => c.id === mixedColor.color1)?.color || '#ccc';
-      const color2 = colors.find(c => c.id === mixedColor.color2)?.color || '#ccc';
+      const color1 = mixedColor.color1;
+      const color2 = mixedColor.color2;
       return {
         background: `linear-gradient(135deg, ${color1} 0%, ${color1} 50%, ${color2} 50%, ${color2} 100%)`
       };

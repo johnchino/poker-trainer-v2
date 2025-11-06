@@ -115,7 +115,8 @@ function App() {
       if (colorsDoc.exists()) {
         const data = colorsDoc.data();
         setColors(data.solidColors || []);
-        setMixedColors(data.mixedColors || []);
+        const validatedMixedColors = (data.mixedColors || []).map(mc => ({ ...mc, color1: mc.color1?.startsWith("#") ? mc.color1 : "#5DBA19", color2: mc.color2?.startsWith("#") ? mc.color2 : "#B9107A" }));
+        setMixedColors(validatedMixedColors);
         if (data.solidColors && data.solidColors.length > 0) {
           setSelectedColor(data.solidColors[0].id);
         }
