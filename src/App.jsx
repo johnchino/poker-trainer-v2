@@ -81,6 +81,7 @@ function App() {
       } else {
         setFolders(loadedFolders);
         setCurrentGrid(loadedFolders[0]?.grids[0]?.id || null);
+      await loadColors(userId);
       }
     } catch (error) { 
       console.error('Error loading data:', error); 
@@ -95,6 +96,49 @@ function App() {
     await setDoc(doc(db, `users/${userId}/folders/${folderId}/grids`, gridId), { name: 'BB vs SB', cellStates: {}, createdAt: new Date() });
     return folder;
   };
+  const saveColors = async (userId, solidColors, mixedColorsList) => {
+    if (!userId) return;
+    try {
+      await setDoc(doc(db, `users/${userId}/colors`, 'userColors'), {
+        solidColors,
+        mixedColors: mixedColorsList,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Error saving colors:', error);
+    }
+  };
+
+  const loadColors = async (userId) => {
+    try {
+      const colorsDoc = await getDoc(doc(db, `users/${userId}/colors`, 'userColors'));
+      if (colorsDoc.exists()) {
+        const data = colorsDoc.data();
+        setColors(data.solidColors || []);
+        setMixedColors(data.mixedColors || []);
+        if (data.solidColors && data.solidColors.length > 0) {
+          setSelectedColor(data.solidColors[0].id);
+        }
+        if (data.mixedColors && data.mixedColors.length > 0) {
+          setSelectedMixedColor(data.mixedColors[0].id);
+        }
+      } else {
+        const defaultSolidColors = [
+          { id: 'green', name: 'action 1', color: '#5DBA19', enabled: true },
+          { id: 'red', name: 'action 2', color: '#B9107A', enabled: true }
+        ];
+        const defaultMixedColors = [
+          { id: 'mixed1', color1: '#5DBA19', color2: '#B9107A', name: 'mixed action', enabled: true }
+        ];
+        setColors(defaultSolidColors);
+        setMixedColors(defaultMixedColors);
+        await saveColors(userId, defaultSolidColors, defaultMixedColors);
+      }
+    } catch (error) {
+      console.error('Error loading colors:', error);
+    }
+  };
+
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -217,15 +261,19 @@ function App() {
       color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
       enabled: true
     };
-    setColors([...colors, newColor]);
+    const newColors = [...colors, newColor];
+    setColors(newColors);
     setSelectedColor(newColor.id);
+    if (user) saveColors(user.uid, newColors, mixedColors);
   };
 
   const deleteColor = (colorId) => {
-    setColors(colors.filter(c => c.id !== colorId));
-    if (selectedColor === colorId && colors.length > 1) {
-      setSelectedColor(colors.find(c => c.id !== colorId).id);
+    const newColors = colors.filter(c => c.id !== colorId);
+    setColors(newColors);
+    if (selectedColor === colorId && newColors.length > 0) {
+      setSelectedColor(newColors[0].id);
     }
+    if (user) saveColors(user.uid, newColors, mixedColors);
   };
 
   const startEditingColor = (colorId) => {
@@ -235,13 +283,17 @@ function App() {
   };
 
   const saveColorName = () => {
-    setColors(colors.map(c => c.id === editingColorId ? { ...c, name: editingColorName } : c));
+    const newColors = colors.map(c => c.id === editingColorId ? { ...c, name: editingColorName } : c);
+    setColors(newColors);
     setEditingColorId(null);
     setEditingColorName('');
+    if (user) saveColors(user.uid, newColors, mixedColors);
   };
 
   const updateColorValue = (colorId, newColor) => {
-    setColors(colors.map(c => c.id === colorId ? { ...c, color: newColor } : c));
+    const newColors = colors.map(c => c.id === colorId ? { ...c, color: newColor } : c);
+    setColors(newColors);
+    if (user) saveColors(user.uid, newColors, mixedColors);
   };
 
   const addMixedColor = () => {
@@ -252,22 +304,23 @@ function App() {
       color2: colors[1]?.color || '#B9107A',
       enabled: true
     };
-    setMixedColors([...mixedColors, newMixedColor]);
+    const newMixedColors = [...mixedColors, newMixedColor];
+    setMixedColors(newMixedColors);
     setPaintMode('mixed');
     setSelectedMixedColor(newMixedColor.id);
+    if (user) saveColors(user.uid, colors, newMixedColors);
   };
 
   const deleteMixedColor = (mixedColorId) => {
-    setMixedColors(mixedColors.filter(m => m.id !== mixedColorId));
-    if (selectedMixedColor === mixedColorId && mixedColors.length > 1) {
-      const remaining = mixedColors.find(m => m.id !== mixedColorId);
-      if (remaining) {
-        setSelectedMixedColor(remaining.id);
-      } else {
-        setPaintMode('solid');
-        setSelectedColor(colors[0]?.id || 'green');
-      }
+    const newMixedColors = mixedColors.filter(m => m.id !== mixedColorId);
+    setMixedColors(newMixedColors);
+    if (selectedMixedColor === mixedColorId && newMixedColors.length > 0) {
+      setSelectedMixedColor(newMixedColors[0].id);
+    } else if (newMixedColors.length === 0) {
+      setPaintMode('solid');
+      setSelectedColor(colors[0]?.id || 'green');
     }
+    if (user) saveColors(user.uid, colors, newMixedColors);
   };
 
   const calculatePercentage = () => {
@@ -651,13 +704,17 @@ function App() {
             if (colorPickerTarget.type === 'solid') {
               updateColorValue(colorPickerTarget.id, newColor);
             } else if (colorPickerTarget.type === 'mixed1') {
-              setMixedColors(mixedColors.map(m => 
+              const newMixedColors = mixedColors.map(m => 
                 m.id === colorPickerTarget.id ? { ...m, color1: newColor } : m
-              ));
+              );
+              setMixedColors(newMixedColors);
+              if (user) saveColors(user.uid, colors, newMixedColors);
             } else if (colorPickerTarget.type === 'mixed2') {
-              setMixedColors(mixedColors.map(m => 
+              const newMixedColors = mixedColors.map(m => 
                 m.id === colorPickerTarget.id ? { ...m, color2: newColor } : m
-              ));
+              );
+              setMixedColors(newMixedColors);
+              if (user) saveColors(user.uid, colors, newMixedColors);
             }
           }}
           onClose={() => setColorPickerTarget(null)}
