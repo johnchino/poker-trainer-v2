@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { getCellComparisonClass, getCellComparisonColor } from '../utils/trainingHelpers';
 
 const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
@@ -21,7 +21,7 @@ const generateHands = () => {
   return hands;
 };
 
-export const PokerGrid = ({
+export const PokerGrid = forwardRef(({
   cellStates,
   onCellStatesChange,
   colors,
@@ -32,7 +32,7 @@ export const PokerGrid = ({
   simpleView,
   comparisonMode = false,
   correctAnswers = {}
-}) => {
+}, ref) => {
   const hands = generateHands();
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -107,11 +107,12 @@ export const PokerGrid = ({
   };
 
   return (
-    <div className="poker-grid-container" onMouseUp={handleMouseUp}>
+    <div className="poker-grid-container" ref={ref} onMouseUp={handleMouseUp}>
       <div className="poker-grid">
         {hands.map((row, i) => (
           <div key={i} className="poker-grid-row">
             {row.map((hand, j) => {
+              const isPair = i === j;
               const isCenterPair = i === 6 && j === 6;
               const displayText = hand.slice(0, 2);
               const suffix = simpleView ? '' : (hand.endsWith('s') ? 's' : hand.endsWith('o') ? 'o' : '');
@@ -129,7 +130,7 @@ export const PokerGrid = ({
                   onMouseDown={() => handleMouseDown(hand)}
                   onMouseEnter={() => handleMouseEnter(hand)}
                   style={getCellStyle(hand)}
-                  className={`poker-cell ${getCellColor(hand)} ${comparisonClass}`}
+                  className={`poker-cell ${isPair ? 'poker-cell-pair-style4c' : ''} ${getCellColor(hand)} ${comparisonClass}`}
                 >
                   {isCenterPair && simpleView ? (
                     <svg width="20" height="20" viewBox="0 0 20 20" className={textOpacity}>
@@ -149,4 +150,4 @@ export const PokerGrid = ({
       </div>
     </div>
   );
-};
+});

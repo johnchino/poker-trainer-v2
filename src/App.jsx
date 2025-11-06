@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -49,6 +50,9 @@ function App() {
     exitTraining,
     setUserAttempt
   } = useTrainingMode(user, currentGrid, folders);
+
+  // Grid ref for exporting
+  const gridRef = useRef(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -279,6 +283,31 @@ function App() {
     updateCurrentCellStates({});
   };
 
+  const handleExportGrid = async () => {
+    if (!gridRef.current) return;
+
+    try {
+      const canvas = await html2canvas(gridRef.current, {
+        backgroundColor: '#1a1d24',
+        scale: 2, // Higher quality (2x resolution)
+        logging: false,
+        useCORS: true
+      });
+
+      // Convert to JPEG blob
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `${currentGridData?.name || 'poker-grid'}.jpg`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }, 'image/jpeg', 0.95); // 95% quality JPEG
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -372,6 +401,7 @@ function App() {
                 </button>
               </div>
               <PokerGrid
+                ref={gridRef}
                 cellStates={trainingMode ? userAttempt : getCurrentCellStates()}
                 onCellStatesChange={trainingMode ? setUserAttempt : updateCurrentCellStates}
                 colors={colors}
@@ -383,15 +413,19 @@ function App() {
                 comparisonMode={trainingMode && showResults}
                 correctAnswers={trainingGridData?.cellStates || {}}
               />
-              <div className="grid-info">
-                <div className="grid-legend">
-                  Suited (upper right) • Offsuit (lower left) • Pairs (diagonal)
-                </div>
+              <div className="grid-controls">
+                <button onClick={handleExportGrid} className="export-btn" title="Export as JPEG">
+                  <Icon icon="save" size={16} />
+                  <span>Export</span>
+                </button>
                 <div className="view-toggle">
                   <span className={`toggle-label ${simpleView ? 'active' : ''}`}>Simple</span>
-                  <button onClick={() => setSimpleView(!simpleView)} className="toggle-switch">
-                    <span className={`toggle-knob ${simpleView ? 'left' : 'right'}`}></span>
-                  </button>
+                  <div
+                    onClick={() => setSimpleView(!simpleView)}
+                    className="neumorphic-toggle neumorphic-toggle-dark"
+                  >
+                    <div className={`neumorphic-switch neumorphic-switch-dark ${simpleView ? 'off-red-dark' : ''}`}></div>
+                  </div>
                   <span className={`toggle-label ${!simpleView ? 'active' : ''}`}>Full</span>
                 </div>
               </div>
