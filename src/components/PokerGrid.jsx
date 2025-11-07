@@ -96,13 +96,22 @@ export const PokerGrid = forwardRef(({
     if (mixedColor) {
       const color1 = mixedColor.color1;
       const color2 = mixedColor.color2;
+      // Find the first color object to get textColor setting
+      const firstColorObj = colors.find(c => c.color === color1);
+      const textColor = firstColorObj?.textColor || 'white';
       return {
-        background: `linear-gradient(135deg, ${color1} 0%, ${color1} 50%, ${color2} 50%, ${color2} 100%)`
+        background: `linear-gradient(135deg, ${color1} 0%, ${color1} 50%, ${color2} 50%, ${color2} 100%)`,
+        color: textColor
       };
     }
 
     const color = colors.find(c => c.id === state);
-    if (color) return { backgroundColor: color.color };
+    if (color) {
+      return {
+        backgroundColor: color.color,
+        color: color.textColor || 'white'
+      };
+    }
     return {};
   };
 

@@ -22,8 +22,8 @@ function App() {
   const [currentGrid, setCurrentGrid] = useState(null);
   const [selectedColor, setSelectedColor] = useState('green');
   const [colors, setColors] = useState([
-    { id: 'green', name: 'action 1', color: '#5DBA19', enabled: true },
-    { id: 'red', name: 'action 2', color: '#B9107A', enabled: true }
+    { id: 'green', name: 'action 1', color: '#5DBA19', enabled: true, textColor: 'white' },
+    { id: 'red', name: 'action 2', color: '#B9107A', enabled: true, textColor: 'white' }
   ]);
   const [editingColorId, setEditingColorId] = useState(null);
   const [editingColorName, setEditingColorName] = useState('');
@@ -114,7 +114,8 @@ function App() {
       const colorsDoc = await getDoc(doc(db, `users/${userId}/colors`, 'userColors'));
       if (colorsDoc.exists()) {
         const data = colorsDoc.data();
-        setColors(data.solidColors || []);
+        const validatedColors = (data.solidColors || []).map(c => ({ ...c, textColor: c.textColor || 'white' }));
+        setColors(validatedColors);
         const validatedMixedColors = (data.mixedColors || []).map(mc => ({ ...mc, color1: mc.color1?.startsWith("#") ? mc.color1 : "#5DBA19", color2: mc.color2?.startsWith("#") ? mc.color2 : "#B9107A" }));
         setMixedColors(validatedMixedColors);
         if (data.solidColors && data.solidColors.length > 0) {
@@ -125,8 +126,8 @@ function App() {
         }
       } else {
         const defaultSolidColors = [
-          { id: 'green', name: 'action 1', color: '#5DBA19', enabled: true },
-          { id: 'red', name: 'action 2', color: '#B9107A', enabled: true }
+          { id: 'green', name: 'action 1', color: '#5DBA19', enabled: true, textColor: 'white' },
+          { id: 'red', name: 'action 2', color: '#B9107A', enabled: true, textColor: 'white' }
         ];
         const defaultMixedColors = [
           { id: 'mixed1', color1: '#5DBA19', color2: '#B9107A', name: 'mixed action', enabled: true }
@@ -295,6 +296,16 @@ function App() {
     const newColors = colors.map(c => c.id === colorId ? { ...c, color: newColor } : c);
     setColors(newColors);
     if (user) saveColors(user.uid, newColors, mixedColors);
+  };
+
+  const toggleTextColor = async (colorId) => {
+    const newColors = colors.map(c =>
+      c.id === colorId
+        ? { ...c, textColor: c.textColor === 'white' ? 'black' : 'white' }
+        : c
+    );
+    setColors(newColors);
+    if (user) await saveColors(user.uid, newColors, mixedColors);
   };
 
   const addMixedColor = () => {
@@ -538,11 +549,27 @@ function App() {
                         className="icon-btn-hidden"
                         title="Change Color"
                       >
-                        <img 
-                          src="https://i.postimg.cc/L4C9zddV/dropper-2418414-1.png" 
-                          alt="dropper" 
+                        <img
+                          src="https://i.postimg.cc/L4C9zddV/dropper-2418414-1.png"
+                          alt="dropper"
                           className="dropper-icon"
                         />
+                      </button>
+                      <button
+                        onClick={() => toggleTextColor(color.id)}
+                        className="icon-btn-hidden"
+                        title={`Toggle text color (currently ${color.textColor || 'white'})`}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <circle
+                            cx="8"
+                            cy="8"
+                            r="6"
+                            fill={color.textColor === 'black' ? '#000000' : '#ffffff'}
+                            stroke="#666"
+                            strokeWidth="1"
+                          />
+                        </svg>
                       </button>
                       <button onClick={() => deleteColor(color.id)} className="icon-btn-hidden icon-btn-delete" title="Delete">
                         <Icon icon="x" size={16} />
