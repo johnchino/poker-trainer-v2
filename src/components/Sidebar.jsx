@@ -29,7 +29,15 @@ const SortableFolder = ({ folder, onToggle, onRename, onDelete, onAddGrid, onGri
   return (
     <div ref={setNodeRef} style={style} className="sortable-folder">
       <div className="folder-header group" {...attributes} {...listeners}>
-        <button onClick={() => onToggle(folder.id)} className="folder-toggle">
+        <button
+          onClick={() => { if (!isEditing) onToggle(folder.id); }}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.code === 'Space') {
+              e.preventDefault();
+            }
+          }}
+          className="folder-toggle"
+        >
           <Icon icon={folder.expanded ? "chevron-down" : "chevron-right"} size={12} />
           <Icon icon={folder.expanded ? "folder-open" : "folder"} size={16} />
           {isEditing ? (
@@ -38,6 +46,7 @@ const SortableFolder = ({ folder, onToggle, onRename, onDelete, onAddGrid, onGri
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSave()}
+              onKeyDown={(e) => e.stopPropagation()}
               onBlur={handleSave}
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
@@ -127,6 +136,7 @@ const SortableGrid = ({ grid, folderId, isActive, onSelect, onRename, onDelete }
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSave()}
+            onKeyDown={(e) => e.stopPropagation()}
             onBlur={handleSave}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
