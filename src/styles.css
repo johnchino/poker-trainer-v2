@@ -416,6 +416,28 @@ body {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 }
 
+.export-wrapper {
+  display: inline-block;
+}
+
+.export-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.4rem;
+  color: white;
+  text-align: center;
+}
+
+.export-branding {
+  text-align: center;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  padding-top: 12px;
+  padding-bottom: 4px;
+  font-family: system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.5px;
+}
+
 .poker-grid {
   display: flex;
   flex-direction: column;

@@ -34,6 +34,7 @@ function App() {
   const [paintMode, setPaintMode] = useState('solid');
   const [selectedMixedColor, setSelectedMixedColor] = useState('mixed1');
   const [colorPickerTarget, setColorPickerTarget] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Training mode hook
   const {
@@ -352,12 +353,21 @@ function App() {
     if (!gridRef.current) return;
 
     try {
+      // Show branding for export
+      setIsExporting(true);
+      
+      // Wait for DOM to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const canvas = await html2canvas(gridRef.current, {
         backgroundColor: '#1a1d24',
         scale: 2, // Higher quality (2x resolution)
         logging: false,
         useCORS: true
       });
+
+      // Hide branding after capture
+      setIsExporting(false);
 
       // Convert to JPEG blob
       canvas.toBlob((blob) => {
@@ -370,6 +380,7 @@ function App() {
       }, 'image/jpeg', 0.95); // 95% quality JPEG
     } catch (error) {
       console.error('Export failed:', error);
+      setIsExporting(false); // Make sure to reset on error
     }
   };
 
@@ -465,8 +476,9 @@ function App() {
                   <span>{trainingMode ? 'Exit Training' : 'Practice'}</span>
                 </button>
               </div>
-              <PokerGrid
-                ref={gridRef}
+              <div ref={gridRef} className="export-wrapper">
+                {isExporting && <h1 className="export-title">{currentGridData?.name || 'Grid'}</h1>}
+                <PokerGrid
                 cellStates={trainingMode ? userAttempt : getCurrentCellStates()}
                 onCellStatesChange={trainingMode ? setUserAttempt : updateCurrentCellStates}
                 colors={colors}
@@ -478,6 +490,12 @@ function App() {
                 comparisonMode={trainingMode && showResults}
                 correctAnswers={trainingGridData?.cellStates || {}}
               />
+                {isExporting && (
+                  <div className="export-branding">
+                    Powered by: EASY<strong>POKER</strong>CHARTS.com
+                  </div>
+                )}
+              </div>
               <div className="grid-controls">
                 <button onClick={handleExportGrid} className="export-btn" title="Export as JPEG">
                   <Icon icon="save" size={16} />
