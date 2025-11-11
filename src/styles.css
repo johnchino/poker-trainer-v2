@@ -464,6 +464,7 @@ body {
   cursor: pointer;
   user-select: none;
   border-radius: 0.25rem;
+  overflow: hidden;
   color: white;
 }
 
@@ -579,12 +580,12 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 14px;
-  height: 14px;
-  background: rgba(255,255,255,0.3);
-  backdrop-filter: blur(1px);
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-  border-top-left-radius: 0.25rem;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 14px 14px 0 0;
+  border-color: rgba(255,255,255,0.3) transparent transparent transparent;
+  
   mix-blend-mode: overlay;
   pointer-events: none;
 }
