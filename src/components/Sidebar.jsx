@@ -80,12 +80,21 @@ const SortableFolder = ({ folder, onToggle, onRename, onDelete, onAddGrid, onGri
           >
             <Icon icon="pencil" size={10} />
           </button>
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
-              onDelete(folder.id);
+              const hasGrids = folder.grids && folder.grids.length > 0;
+              if (hasGrids) {
+                const gridCount = folder.grids.length;
+                const message = 'This folder contains ' + gridCount + ' grid' + (gridCount > 1 ? 's' : '') + '. Are you sure you want to delete it? This action cannot be undone.';
+                if (window.confirm(message)) {
+                  onDelete(folder.id);
+                }
+              } else {
+                onDelete(folder.id);
+              }
             }}
-            className="icon-btn icon-btn-delete" 
+            className="icon-btn icon-btn-delete"
             title="Delete"
           >
             <Icon icon="trash-2" size={14} />

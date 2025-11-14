@@ -27,6 +27,8 @@ function App() {
   ]);
   const [editingColorId, setEditingColorId] = useState(null);
   const [editingColorName, setEditingColorName] = useState('');
+  const [editingMixedColorId, setEditingMixedColorId] = useState(null);
+  const [editingMixedColorName, setEditingMixedColorName] = useState('');
   const [simpleView, setSimpleView] = useState(true);
   const [mixedColors, setMixedColors] = useState([
     { id: 'mixed1', color1: '#5DBA19', color2: '#B9107A', name: 'mixed action', enabled: true }
@@ -211,16 +213,33 @@ function App() {
 
   const deleteFolder = async (folderId) => {
     const folder = folders.find(f => f.id === folderId);
-    if (folder && user) {
-      for (const grid of folder.grids) {
-        await deleteDoc(doc(db, `users/${user.uid}/folders/${folderId}/grids`, grid.id));
+
+    try {
+      // Delete all grids in the folder first (Firestore requires subcollections to be deleted)
+      if (folder && folder.grids && folder.grids.length > 0 && user) {
+        for (const grid of folder.grids) {
+          await deleteDoc(doc(db, `users/${user.uid}/folders/${folderId}/grids`, grid.id));
+        }
       }
-    }
-    setFolders(prev => prev.filter(f => f.id !== folderId));
-    if (user) await deleteDoc(doc(db, `users/${user.uid}/folders`, folderId));
-    if (folder && folder.grids.some(g => g.id === currentGrid)) {
-      const firstGrid = folders.flatMap(f => f.grids).find(g => !folder.grids.some(fg => fg.id === g.id));
-      setCurrentGrid(firstGrid?.id || null);
+
+      // Delete the folder document from Firestore
+      if (user) {
+        await deleteDoc(doc(db, `users/${user.uid}/folders`, folderId));
+      }
+
+      // Update local state - remove folder
+      setFolders(prev => prev.filter(f => f.id !== folderId));
+
+      // If current grid was in deleted folder, switch to another grid
+      if (folder && folder.grids && folder.grids.some(g => g.id === currentGrid)) {
+        const remainingGrids = folders
+          .filter(f => f.id !== folderId)
+          .flatMap(f => f.grids);
+        setCurrentGrid(remainingGrids.length > 0 ? remainingGrids[0].id : null);
+      }
+    } catch (error) {
+      console.error('Error deleting folder:', error);
+      alert('Failed to delete folder. Please try again.');
     }
   };
 
@@ -270,13 +289,40 @@ function App() {
     if (user) saveColors(user.uid, newColors, mixedColors);
   };
 
-  const deleteColor = (colorId) => {
+  const deleteColor = async (colorId) => {
     const newColors = colors.filter(c => c.id !== colorId);
     setColors(newColors);
     if (selectedColor === colorId && newColors.length > 0) {
       setSelectedColor(newColors[0].id);
     }
-    if (user) saveColors(user.uid, newColors, mixedColors);
+
+    // Clear all cells painted with this color from all grids
+    const updatedFolders = folders.map(folder => ({
+      ...folder,
+      grids: folder.grids.map(grid => {
+        const updatedCellStates = { ...grid.cellStates };
+        Object.keys(updatedCellStates).forEach(hand => {
+          if (updatedCellStates[hand] === colorId) {
+            delete updatedCellStates[hand];
+          }
+        });
+        return { ...grid, cellStates: updatedCellStates };
+      })
+    }));
+    setFolders(updatedFolders);
+
+    // Update Firestore
+    if (user) {
+      await saveColors(user.uid, newColors, mixedColors);
+      for (const folder of updatedFolders) {
+        for (const grid of folder.grids) {
+          await updateDoc(doc(db, `users/${user.uid}/folders/${folder.id}/grids`, grid.id), {
+            cellStates: grid.cellStates,
+            updatedAt: new Date()
+          });
+        }
+      }
+    }
   };
 
   const startEditingColor = (colorId) => {
@@ -309,6 +355,20 @@ function App() {
     if (user) await saveColors(user.uid, newColors, mixedColors);
   };
 
+  const startEditingMixedColor = (mixedColorId) => {
+    const mixedColor = mixedColors.find(m => m.id === mixedColorId);
+    setEditingMixedColorId(mixedColorId);
+    setEditingMixedColorName(mixedColor.name);
+  };
+
+  const saveMixedColorName = () => {
+    const newMixedColors = mixedColors.map(m => m.id === editingMixedColorId ? { ...m, name: editingMixedColorName } : m);
+    setMixedColors(newMixedColors);
+    setEditingMixedColorId(null);
+    setEditingMixedColorName('');
+    if (user) saveColors(user.uid, colors, newMixedColors);
+  };
+
   const addMixedColor = () => {
     const newMixedColor = {
       id: `mixed${Date.now()}`,
@@ -324,7 +384,7 @@ function App() {
     if (user) saveColors(user.uid, colors, newMixedColors);
   };
 
-  const deleteMixedColor = (mixedColorId) => {
+  const deleteMixedColor = async (mixedColorId) => {
     const newMixedColors = mixedColors.filter(m => m.id !== mixedColorId);
     setMixedColors(newMixedColors);
     if (selectedMixedColor === mixedColorId && newMixedColors.length > 0) {
@@ -333,7 +393,34 @@ function App() {
       setPaintMode('solid');
       setSelectedColor(colors[0]?.id || 'green');
     }
-    if (user) saveColors(user.uid, colors, newMixedColors);
+
+    // Clear all cells painted with this mixed color from all grids
+    const updatedFolders = folders.map(folder => ({
+      ...folder,
+      grids: folder.grids.map(grid => {
+        const updatedCellStates = { ...grid.cellStates };
+        Object.keys(updatedCellStates).forEach(hand => {
+          if (updatedCellStates[hand] === mixedColorId) {
+            delete updatedCellStates[hand];
+          }
+        });
+        return { ...grid, cellStates: updatedCellStates };
+      })
+    }));
+    setFolders(updatedFolders);
+
+    // Update Firestore
+    if (user) {
+      await saveColors(user.uid, colors, newMixedColors);
+      for (const folder of updatedFolders) {
+        for (const grid of folder.grids) {
+          await updateDoc(doc(db, `users/${user.uid}/folders/${folder.id}/grids`, grid.id), {
+            cellStates: grid.cellStates,
+            updatedAt: new Date()
+          });
+        }
+      }
+    }
   };
 
   const calculatePercentage = () => {
@@ -624,7 +711,21 @@ function App() {
                             background: `linear-gradient(135deg, ${mixedColor.color1} 0%, ${mixedColor.color1} 50%, ${mixedColor.color2} 50%, ${mixedColor.color2} 100%)`
                           }}
                         ></button>
-                        <button className="color-name-btn">{mixedColor.name}</button>
+                        {editingMixedColorId === mixedColor.id ? (
+                          <input
+                            type="text"
+                            value={editingMixedColorName}
+                            onChange={(e) => setEditingMixedColorName(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && saveMixedColorName()}
+                            onBlur={saveMixedColorName}
+                            className="color-name-input"
+                            autoFocus
+                          />
+                        ) : (
+                          <button onClick={() => startEditingMixedColor(mixedColor.id)} className="color-name-btn">
+                            {mixedColor.name}
+                          </button>
+                        )}
                         <div className="mixed-color-actions">
                           <button
                             onClick={() => setColorPickerTarget({ type: 'mixed1', id: mixedColor.id })}
