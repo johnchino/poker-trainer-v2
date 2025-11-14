@@ -19,6 +19,7 @@ function App() {
   const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(true);
   const [folders, setFolders] = useState([]);
+  const [rootGrids, setRootGrids] = useState([]);
   const [currentGrid, setCurrentGrid] = useState(null);
   const [selectedColor, setSelectedColor] = useState('green');
   const [colors, setColors] = useState([
@@ -62,32 +63,57 @@ function App() {
       setUser(user);
       setLoading(false);
       if (user) loadUserData(user.uid);
-      else { setFolders([]); setCurrentGrid(null); }
+      else { setFolders([]); setRootGrids([]); setCurrentGrid(null); }
     });
     return () => unsubscribe();
   }, []);
 
   const loadUserData = async (userId) => {
     try {
+      // Load folders and their grids
       const foldersSnapshot = await getDocs(collection(db, `users/${userId}/folders`));
       const loadedFolders = [];
       for (const folderDoc of foldersSnapshot.docs) {
         const folderData = folderDoc.data();
         const gridsSnapshot = await getDocs(collection(db, `users/${userId}/folders/${folderDoc.id}/grids`));
         const grids = gridsSnapshot.docs.map(gridDoc => ({ id: gridDoc.id, ...gridDoc.data() }));
-        loadedFolders.push({ id: folderDoc.id, name: folderData.name, expanded: folderData.expanded || false, grids });
+        loadedFolders.push({
+          id: folderDoc.id,
+          name: folderData.name,
+          expanded: folderData.expanded || false,
+          order: folderData.order ?? loadedFolders.length,
+          grids
+        });
       }
-      if (loadedFolders.length === 0) {
+
+      // Load root-level grids
+      const rootGridsSnapshot = await getDocs(collection(db, `users/${userId}/grids`));
+      const loadedRootGrids = rootGridsSnapshot.docs.map((gridDoc, index) => ({
+        id: gridDoc.id,
+        ...gridDoc.data(),
+        order: gridDoc.data().order ?? (loadedFolders.length + index)
+      }));
+
+      if (loadedFolders.length === 0 && loadedRootGrids.length === 0) {
         const defaultFolder = await createDefaultFolder(userId);
         setFolders([defaultFolder]);
+        setRootGrids([]);
         setCurrentGrid(defaultFolder.grids[0].id);
       } else {
+        // Sort both by order for consistent display
+        loadedFolders.sort((a, b) => a.order - b.order);
+        loadedRootGrids.sort((a, b) => a.order - b.order);
+
         setFolders(loadedFolders);
-        setCurrentGrid(loadedFolders[0]?.grids[0]?.id || null);
-      await loadColors(userId);
+        setRootGrids(loadedRootGrids);
+        // Set current grid to first available (folder grid or root grid)
+        const firstFolderGrid = loadedFolders[0]?.grids[0]?.id;
+        const firstRootGrid = loadedRootGrids[0]?.id;
+        setCurrentGrid(firstFolderGrid || firstRootGrid || null);
       }
-    } catch (error) { 
-      console.error('Error loading data:', error); 
+      await loadColors(userId);
+    } catch (error) {
+      console.error('Error loading data:', error);
     }
   };
 
@@ -161,53 +187,85 @@ function App() {
   };
 
   const getCurrentCellStates = () => {
+    // Check folder grids first
     for (const folder of folders) {
       const grid = folder.grids.find(g => g.id === currentGrid);
       if (grid) return grid.cellStates || {};
     }
+    // Check root grids
+    const rootGrid = rootGrids.find(g => g.id === currentGrid);
+    if (rootGrid) return rootGrid.cellStates || {};
     return {};
   };
 
   const updateCurrentCellStates = async (newStates) => {
-    setFolders(prev => prev.map(folder => ({
-      ...folder,
-      grids: folder.grids.map(grid => grid.id === currentGrid ? { ...grid, cellStates: newStates } : grid)
-    })));
-    
-    if (user) {
-      for (const folder of folders) {
-        const grid = folder.grids.find(g => g.id === currentGrid);
-        if (grid) {
-          await updateDoc(doc(db, `users/${user.uid}/folders/${folder.id}/grids`, currentGrid), {
-            cellStates: newStates,
-            updatedAt: new Date()
-          });
-          break;
-        }
+    // Check if current grid is in a folder
+    let isInFolder = false;
+    let targetFolderId = null;
+
+    for (const folder of folders) {
+      const grid = folder.grids.find(g => g.id === currentGrid);
+      if (grid) {
+        isInFolder = true;
+        targetFolderId = folder.id;
+        break;
+      }
+    }
+
+    if (isInFolder) {
+      // Update folder grid
+      setFolders(prev => prev.map(folder => ({
+        ...folder,
+        grids: folder.grids.map(grid => grid.id === currentGrid ? { ...grid, cellStates: newStates } : grid)
+      })));
+
+      if (user && targetFolderId) {
+        await updateDoc(doc(db, `users/${user.uid}/folders/${targetFolderId}/grids`, currentGrid), {
+          cellStates: newStates,
+          updatedAt: new Date()
+        });
+      }
+    } else {
+      // Update root grid
+      setRootGrids(prev => prev.map(grid => grid.id === currentGrid ? { ...grid, cellStates: newStates } : grid));
+
+      if (user) {
+        await updateDoc(doc(db, `users/${user.uid}/grids`, currentGrid), {
+          cellStates: newStates,
+          updatedAt: new Date()
+        });
       }
     }
   };
 
   const addFolder = async () => {
     const folderId = `folder${Date.now()}`;
-    const newFolder = { id: folderId, name: 'New Folder', expanded: true, grids: [] };
+    const order = folders.length + rootGrids.length;
+    const newFolder = { id: folderId, name: 'New Folder', expanded: true, grids: [], order };
     setFolders(prev => [...prev, newFolder]);
-    if (user) await setDoc(doc(db, `users/${user.uid}/folders`, folderId), { name: 'New Folder', expanded: true, createdAt: new Date() });
+    if (user) await setDoc(doc(db, `users/${user.uid}/folders`, folderId), { name: 'New Folder', expanded: true, order, createdAt: new Date() });
   };
 
   const addGrid = async (folderId = null) => {
-    let targetFolderId = folderId;
-    if (!targetFolderId) {
-      if (folders.length === 0) {
-        await addFolder();
-        return;
-      }
-      targetFolderId = folders[0].id;
-    }
     const gridId = `grid${Date.now()}`;
     const newGrid = { id: gridId, name: 'New Grid', cellStates: {} };
-    setFolders(prev => prev.map(folder => folder.id === targetFolderId ? { ...folder, grids: [...folder.grids, newGrid] } : folder));
-    if (user) await setDoc(doc(db, `users/${user.uid}/folders/${targetFolderId}/grids`, gridId), { name: 'New Grid', cellStates: {}, createdAt: new Date() });
+
+    if (folderId) {
+      // Create grid inside folder
+      setFolders(prev => prev.map(folder => folder.id === folderId ? { ...folder, grids: [...folder.grids, newGrid], expanded: true } : folder));
+      if (user) {
+        await setDoc(doc(db, `users/${user.uid}/folders/${folderId}/grids`, gridId), { name: 'New Grid', cellStates: {}, createdAt: new Date() });
+        await updateDoc(doc(db, `users/${user.uid}/folders`, folderId), { expanded: true });
+      }
+    } else {
+      // Create grid at root level
+      const order = folders.length + rootGrids.length;
+      const newRootGrid = { ...newGrid, order };
+      setRootGrids(prev => [...prev, newRootGrid]);
+      if (user) {
+        await setDoc(doc(db, `users/${user.uid}/grids`, gridId), { name: 'New Grid', cellStates: {}, order, createdAt: new Date() });
+      }
+    }
     setCurrentGrid(gridId);
   };
 
@@ -244,11 +302,20 @@ function App() {
   };
 
   const deleteGrid = async (folderId, gridId) => {
-    setFolders(prev => prev.map(folder => folder.id === folderId ? { ...folder, grids: folder.grids.filter(g => g.id !== gridId) } : folder));
-    if (user) await deleteDoc(doc(db, `users/${user.uid}/folders/${folderId}/grids`, gridId));
+    if (folderId) {
+      // Delete grid from folder
+      setFolders(prev => prev.map(folder => folder.id === folderId ? { ...folder, grids: folder.grids.filter(g => g.id !== gridId) } : folder));
+      if (user) await deleteDoc(doc(db, `users/${user.uid}/folders/${folderId}/grids`, gridId));
+    } else {
+      // Delete root grid
+      setRootGrids(prev => prev.filter(g => g.id !== gridId));
+      if (user) await deleteDoc(doc(db, `users/${user.uid}/grids`, gridId));
+    }
+
+    // If deleted grid was current, switch to another grid
     if (currentGrid === gridId) {
-      const firstGrid = folders.flatMap(f => f.grids).find(g => g.id !== gridId);
-      setCurrentGrid(firstGrid?.id || null);
+      const allGrids = [...folders.flatMap(f => f.grids), ...rootGrids].filter(g => g.id !== gridId);
+      setCurrentGrid(allGrids[0]?.id || null);
     }
   };
 
@@ -258,11 +325,18 @@ function App() {
   };
 
   const renameGrid = async (folderId, gridId, newName) => {
-    setFolders(prev => prev.map(folder => ({
-      ...folder,
-      grids: folder.grids.map(g => g.id === gridId ? { ...g, name: newName } : g)
-    })));
-    if (user) await updateDoc(doc(db, `users/${user.uid}/folders/${folderId}/grids`, gridId), { name: newName });
+    if (folderId) {
+      // Rename grid in folder
+      setFolders(prev => prev.map(folder => ({
+        ...folder,
+        grids: folder.grids.map(g => g.id === gridId ? { ...g, name: newName } : g)
+      })));
+      if (user) await updateDoc(doc(db, `users/${user.uid}/folders/${folderId}/grids`, gridId), { name: newName });
+    } else {
+      // Rename root grid
+      setRootGrids(prev => prev.map(g => g.id === gridId ? { ...g, name: newName } : g));
+      if (user) await updateDoc(doc(db, `users/${user.uid}/grids`, gridId), { name: newName });
+    }
   };
 
   const toggleFolder = async (folderId) => {
@@ -296,7 +370,7 @@ function App() {
       setSelectedColor(newColors[0].id);
     }
 
-    // Clear all cells painted with this color from all grids
+    // Clear all cells painted with this color from all folder grids
     const updatedFolders = folders.map(folder => ({
       ...folder,
       grids: folder.grids.map(grid => {
@@ -311,9 +385,22 @@ function App() {
     }));
     setFolders(updatedFolders);
 
+    // Clear all cells painted with this color from root grids
+    const updatedRootGrids = rootGrids.map(grid => {
+      const updatedCellStates = { ...grid.cellStates };
+      Object.keys(updatedCellStates).forEach(hand => {
+        if (updatedCellStates[hand] === colorId) {
+          delete updatedCellStates[hand];
+        }
+      });
+      return { ...grid, cellStates: updatedCellStates };
+    });
+    setRootGrids(updatedRootGrids);
+
     // Update Firestore
     if (user) {
       await saveColors(user.uid, newColors, mixedColors);
+      // Update folder grids
       for (const folder of updatedFolders) {
         for (const grid of folder.grids) {
           await updateDoc(doc(db, `users/${user.uid}/folders/${folder.id}/grids`, grid.id), {
@@ -321,6 +408,13 @@ function App() {
             updatedAt: new Date()
           });
         }
+      }
+      // Update root grids
+      for (const grid of updatedRootGrids) {
+        await updateDoc(doc(db, `users/${user.uid}/grids`, grid.id), {
+          cellStates: grid.cellStates,
+          updatedAt: new Date()
+        });
       }
     }
   };
@@ -394,7 +488,7 @@ function App() {
       setSelectedColor(colors[0]?.id || 'green');
     }
 
-    // Clear all cells painted with this mixed color from all grids
+    // Clear all cells painted with this mixed color from all folder grids
     const updatedFolders = folders.map(folder => ({
       ...folder,
       grids: folder.grids.map(grid => {
@@ -409,9 +503,22 @@ function App() {
     }));
     setFolders(updatedFolders);
 
+    // Clear all cells painted with this mixed color from root grids
+    const updatedRootGrids = rootGrids.map(grid => {
+      const updatedCellStates = { ...grid.cellStates };
+      Object.keys(updatedCellStates).forEach(hand => {
+        if (updatedCellStates[hand] === mixedColorId) {
+          delete updatedCellStates[hand];
+        }
+      });
+      return { ...grid, cellStates: updatedCellStates };
+    });
+    setRootGrids(updatedRootGrids);
+
     // Update Firestore
     if (user) {
       await saveColors(user.uid, colors, newMixedColors);
+      // Update folder grids
       for (const folder of updatedFolders) {
         for (const grid of folder.grids) {
           await updateDoc(doc(db, `users/${user.uid}/folders/${folder.id}/grids`, grid.id), {
@@ -419,6 +526,13 @@ function App() {
             updatedAt: new Date()
           });
         }
+      }
+      // Update root grids
+      for (const grid of updatedRootGrids) {
+        await updateDoc(doc(db, `users/${user.uid}/grids`, grid.id), {
+          cellStates: grid.cellStates,
+          updatedAt: new Date()
+        });
       }
     }
   };
@@ -528,15 +642,43 @@ function App() {
     );
   }
 
-  const currentGridData = folders.flatMap(f => f.grids).find(g => g.id === currentGrid);
+  // Handle folder reordering with Firestore persistence
+  const handleFoldersChange = async (newFolders) => {
+    setFolders(newFolders);
+    if (user) {
+      // Update order in Firestore for each folder
+      await Promise.all(
+        newFolders.map(folder =>
+          updateDoc(doc(db, `users/${user.uid}/folders`, folder.id), { order: folder.order })
+        )
+      );
+    }
+  };
+
+  // Handle root grid reordering with Firestore persistence
+  const handleRootGridsChange = async (newRootGrids) => {
+    setRootGrids(newRootGrids);
+    if (user) {
+      // Update order in Firestore for each root grid
+      await Promise.all(
+        newRootGrids.map(grid =>
+          updateDoc(doc(db, `users/${user.uid}/grids`, grid.id), { order: grid.order })
+        )
+      );
+    }
+  };
+
+  const currentGridData = [...folders.flatMap(f => f.grids), ...rootGrids].find(g => g.id === currentGrid);
 
   return (
     <div className="app">
       <Sidebar
         user={user}
         folders={folders}
+        rootGrids={rootGrids}
         currentGrid={currentGrid}
-        onFoldersChange={setFolders}
+        onFoldersChange={handleFoldersChange}
+        onRootGridsChange={handleRootGridsChange}
         onCurrentGridChange={setCurrentGrid}
         onAddFolder={addFolder}
         onAddGrid={addGrid}

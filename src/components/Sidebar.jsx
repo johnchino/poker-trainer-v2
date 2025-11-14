@@ -28,9 +28,13 @@ const SortableFolder = ({ folder, onToggle, onRename, onDelete, onAddGrid, onGri
 
   return (
     <div ref={setNodeRef} style={style} className="sortable-folder">
-      <div className="folder-header group" {...attributes} {...listeners}>
+      <div
+        className="folder-header group"
+        {...attributes}
+        {...listeners}
+        onClick={() => { if (!isEditing) onToggle(folder.id); }}
+      >
         <button
-          onClick={() => { if (!isEditing) onToggle(folder.id); }}
           onKeyDown={(e) => {
             if (e.key === ' ' || e.code === 'Space') {
               e.preventDefault();
@@ -184,11 +188,108 @@ const SortableGrid = ({ grid, folderId, isActive, onSelect, onRename, onDelete }
   );
 };
 
+// Sortable Root Grid Component (renders at folder level)
+const SortableRootGrid = (props) => {
+  const grid = props.grid;
+  const isActive = props.isActive;
+  const onSelect = props.onSelect;
+  const onRename = props.onRename;
+  const onDelete = props.onDelete;
+
+  const sortable = useSortable({ id: grid.id });
+  const attributes = sortable.attributes;
+  const listeners = sortable.listeners;
+  const setNodeRef = sortable.setNodeRef;
+  const transform = sortable.transform;
+  const transition = sortable.transition;
+  const isDragging = sortable.isDragging;
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const editingState = useState(false);
+  const isEditing = editingState[0];
+  const setIsEditing = editingState[1];
+
+  const nameState = useState(grid.name);
+  const editName = nameState[0];
+  const setEditName = nameState[1];
+
+  const handleSave = () => {
+    if (editName.trim()) {
+      onRename(null, grid.id, editName);
+    }
+    setIsEditing(false);
+  };
+
+  const folderHeaderClass = 'folder-header group' + (isActive ? ' active' : '');
+
+  return (
+    <div ref={setNodeRef} style={style} className="sortable-folder">
+      <div
+        className={folderHeaderClass}
+        {...attributes}
+        {...listeners}
+        onClick={() => onSelect(grid.id)}
+      >
+        <div className="folder-toggle">
+          <Icon icon="grid-3x3" size={16} />
+          {isEditing ? (
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSave()}
+              onKeyDown={(e) => e.stopPropagation()}
+              onBlur={handleSave}
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              data-no-dnd="true"
+              className="folder-name-input"
+              autoFocus
+            />
+          ) : (
+            <span className="folder-name">{grid.name}</span>
+          )}
+        </div>
+        <div className="folder-actions" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+              setEditName(grid.name);
+            }}
+            className="icon-btn"
+            title="Rename"
+          >
+            <Icon icon="pencil" size={10} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(null, grid.id);
+            }}
+            className="icon-btn icon-btn-delete"
+            title="Delete"
+          >
+            <Icon icon="trash-2" size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const Sidebar = ({ 
   user, 
   folders, 
+  rootGrids,
   currentGrid,
   onFoldersChange,
+  onRootGridsChange,
   onCurrentGridChange,
   onAddFolder,
   onAddGrid,
@@ -215,28 +316,49 @@ export const Sidebar = ({
     })
   );
 
-  const handleFolderDragEnd = (event) => {
+
+  // Create unified sidebar items (folders + root grids) sorted by order
+  const sidebarItems = [
+    ...folders.map(f => ({ type: 'folder', data: f })),
+    ...rootGrids.map(g => ({ type: 'rootGrid', data: g }))
+  ].sort((a, b) => a.data.order - b.data.order);
+
+  const handleUnifiedDragEnd = (event) => {
     const { active, over } = event;
-    
-    if (over && active.id !== over.id) {
-      const oldIndex = folders.findIndex(f => f.id === active.id);
-      const newIndex = folders.findIndex(f => f.id === over.id);
-      
-      const newFolders = arrayMove(folders, oldIndex, newIndex);
-      onFoldersChange(newFolders);
-    }
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sidebarItems.findIndex(item => item.data.id === active.id);
+    const newIndex = sidebarItems.findIndex(item => item.data.id === over.id);
+
+    const newItems = arrayMove(sidebarItems, oldIndex, newIndex);
+
+    // Separate back into folders and root grids with new order
+    const updatedFolders = [];
+    const updatedRootGrids = [];
+
+    newItems.forEach((item, index) => {
+      if (item.type === 'folder') {
+        updatedFolders.push({ ...item.data, order: index });
+      } else {
+        updatedRootGrids.push({ ...item.data, order: index });
+      }
+    });
+
+    onFoldersChange(updatedFolders);
+    onRootGridsChange(updatedRootGrids);
   };
 
   const handleGridDragEnd = (folderId, event) => {
     const { active, over } = event;
-    
+
     if (over && active.id !== over.id) {
       const folder = folders.find(f => f.id === folderId);
       const oldIndex = folder.grids.findIndex(g => g.id === active.id);
       const newIndex = folder.grids.findIndex(g => g.id === over.id);
-      
+
       const newGrids = arrayMove(folder.grids, oldIndex, newIndex);
-      const newFolders = folders.map(f => 
+      const newFolders = folders.map(f =>
         f.id === folderId ? { ...f, grids: newGrids } : f
       );
       onFoldersChange(newFolders);
@@ -249,7 +371,7 @@ export const Sidebar = ({
         <h2 className="sidebar-title">GTO Ranges</h2>
         <div className="sidebar-user">{user.email}</div>
       </div>
-      
+
       <div className="sidebar-toolbar">
         <button onClick={onAddFolder} className="toolbar-btn" title="New Folder">
           <Icon icon="plus" size={14} />
@@ -272,44 +394,61 @@ export const Sidebar = ({
       </div>
 
       <div className="sidebar-content">
-        <DndContext 
+        <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragEnd={handleFolderDragEnd}
+          onDragEnd={handleUnifiedDragEnd}
         >
-          <SortableContext items={folders.map(f => f.id)} strategy={verticalListSortingStrategy}>
-            {folders.map(folder => (
-              <SortableFolder
-                key={folder.id}
-                folder={folder}
-                onToggle={onToggleFolder}
-                onRename={onRenameFolder}
-                onDelete={onDeleteFolder}
-                onAddGrid={onAddGrid}
-              >
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={(e) => handleGridDragEnd(folder.id, e)}
-                >
-                  <SortableContext items={folder.grids.map(g => g.id)} strategy={verticalListSortingStrategy}>
-                    <div className="grids-list">
-                      {folder.grids.map(grid => (
-                        <SortableGrid
-                          key={grid.id}
-                          grid={grid}
-                          folderId={folder.id}
-                          isActive={currentGrid === grid.id}
-                          onSelect={onCurrentGridChange}
-                          onRename={onRenameGrid}
-                          onDelete={onDeleteGrid}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              </SortableFolder>
-            ))}
+          <SortableContext items={sidebarItems.map(item => item.data.id)} strategy={verticalListSortingStrategy}>
+            {sidebarItems.map(item => {
+              if (item.type === 'folder') {
+                const folder = item.data;
+                return (
+                  <SortableFolder
+                    key={folder.id}
+                    folder={folder}
+                    onToggle={onToggleFolder}
+                    onRename={onRenameFolder}
+                    onDelete={onDeleteFolder}
+                    onAddGrid={onAddGrid}
+                  >
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={(e) => handleGridDragEnd(folder.id, e)}
+                    >
+                      <SortableContext items={folder.grids.map(g => g.id)} strategy={verticalListSortingStrategy}>
+                        <div className="grids-list">
+                          {folder.grids.map(grid => (
+                            <SortableGrid
+                              key={grid.id}
+                              grid={grid}
+                              folderId={folder.id}
+                              isActive={currentGrid === grid.id}
+                              onSelect={onCurrentGridChange}
+                              onRename={onRenameGrid}
+                              onDelete={onDeleteGrid}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  </SortableFolder>
+                );
+              } else {
+                const grid = item.data;
+                return (
+                  <SortableRootGrid
+                    key={grid.id}
+                    grid={grid}
+                    isActive={currentGrid === grid.id}
+                    onSelect={onCurrentGridChange}
+                    onRename={onRenameGrid}
+                    onDelete={onDeleteGrid}
+                  />
+                );
+              }
+            })}
           </SortableContext>
         </DndContext>
       </div>
