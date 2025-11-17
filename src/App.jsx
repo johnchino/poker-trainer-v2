@@ -38,6 +38,8 @@ function App() {
   const [selectedMixedColor, setSelectedMixedColor] = useState('mixed1');
   const [colorPickerTarget, setColorPickerTarget] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportMode, setExportMode] = useState(false);
+  const [selectedForExport, setSelectedForExport] = useState(new Set());
 
   // Training mode hook
   const {
@@ -585,6 +587,260 @@ function App() {
     }
   };
 
+  // Export selected folders/grids as JSON
+  const handleExportData = () => {
+    if (selectedForExport.size === 0) {
+      alert('Please select at least one folder or grid to export');
+      return;
+    }
+
+    const exportData = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      colors: { solid: [], mixed: [] },
+      folders: [],
+      grids: []
+    };
+
+    // Collect all color IDs used in selected items
+    const usedColorIds = new Set();
+    const usedMixedColorIds = new Set();
+
+    // Process selected items
+    selectedForExport.forEach(itemId => {
+      // Check if it's a folder
+      const folder = folders.find(f => f.id === itemId);
+      if (folder) {
+        const exportFolder = {
+          id: folder.id,
+          name: folder.name,
+          grids: folder.grids.map(grid => {
+            // Track used colors
+            Object.values(grid.cellStates || {}).forEach(colorId => {
+              if (colorId && colorId !== 'default') {
+                if (colorId.startsWith('mixed')) {
+                  usedMixedColorIds.add(colorId);
+                } else {
+                  usedColorIds.add(colorId);
+                }
+              }
+            });
+            return {
+              id: grid.id,
+              name: grid.name,
+              cellStates: grid.cellStates || {}
+            };
+          })
+        };
+        exportData.folders.push(exportFolder);
+      }
+
+      // Check if it's a root grid
+      const rootGrid = rootGrids.find(g => g.id === itemId);
+      if (rootGrid) {
+        // Track used colors
+        Object.values(rootGrid.cellStates || {}).forEach(colorId => {
+          if (colorId && colorId !== 'default') {
+            if (colorId.startsWith('mixed')) {
+              usedMixedColorIds.add(colorId);
+            } else {
+              usedColorIds.add(colorId);
+            }
+          }
+        });
+        exportData.grids.push({
+          id: rootGrid.id,
+          name: rootGrid.name,
+          cellStates: rootGrid.cellStates || {}
+        });
+      }
+    });
+
+    // Include only used colors
+    exportData.colors.solid = colors.filter(c => usedColorIds.has(c.id));
+    exportData.colors.mixed = mixedColors.filter(mc => usedMixedColorIds.has(mc.id));
+
+    // Create and download JSON file
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `poker-ranges-${new Date().toISOString().split('T')[0]}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    // Reset export mode
+    setExportMode(false);
+    setSelectedForExport(new Set());
+  };
+
+  // Import ranges from JSON file
+  const handleImportData = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const importData = JSON.parse(text);
+
+        // Validate import data
+        if (!importData.version || !importData.colors) {
+          throw new Error('Invalid import file format');
+        }
+
+        // Auto-add missing solid colors
+        const newSolidColors = [...colors];
+        const colorIdMap = {};
+        (importData.colors.solid || []).forEach(importColor => {
+          const existingColor = newSolidColors.find(c => c.id === importColor.id);
+          if (!existingColor) {
+            // Add new color with new ID to avoid conflicts
+            const newId = `color${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+            colorIdMap[importColor.id] = newId;
+            newSolidColors.push({
+              ...importColor,
+              id: newId
+            });
+          } else {
+            colorIdMap[importColor.id] = importColor.id;
+          }
+        });
+
+        // Auto-add missing mixed colors
+        const newMixedColors = [...mixedColors];
+        const mixedColorIdMap = {};
+        (importData.colors.mixed || []).forEach(importMixed => {
+          const existingMixed = newMixedColors.find(m => m.id === importMixed.id);
+          if (!existingMixed) {
+            const newId = `mixed${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+            mixedColorIdMap[importMixed.id] = newId;
+            newMixedColors.push({
+              ...importMixed,
+              id: newId
+            });
+          } else {
+            mixedColorIdMap[importMixed.id] = importMixed.id;
+          }
+        });
+
+        // Update colors state
+        setColors(newSolidColors);
+        setMixedColors(newMixedColors);
+        if (user) {
+          await saveColors(user.uid, newSolidColors, newMixedColors);
+        }
+
+        // Helper function to remap cell states with new color IDs
+        const remapCellStates = (cellStates) => {
+          const newCellStates = {};
+          Object.entries(cellStates).forEach(([hand, colorId]) => {
+            if (colorIdMap[colorId]) {
+              newCellStates[hand] = colorIdMap[colorId];
+            } else if (mixedColorIdMap[colorId]) {
+              newCellStates[hand] = mixedColorIdMap[colorId];
+            } else {
+              newCellStates[hand] = colorId;
+            }
+          });
+          return newCellStates;
+        };
+
+        // Import folders
+        const newFolders = [...folders];
+        for (const importFolder of (importData.folders || [])) {
+          const newFolderId = `folder${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+          const newFolder = {
+            id: newFolderId,
+            name: `${importFolder.name} (imported)`,
+            expanded: true,
+            order: newFolders.length + rootGrids.length,
+            grids: []
+          };
+
+          // Create folder in Firestore
+          if (user) {
+            await setDoc(doc(db, `users/${user.uid}/folders`, newFolderId), {
+              name: newFolder.name,
+              expanded: true,
+              order: newFolder.order,
+              createdAt: new Date()
+            });
+          }
+
+          // Import grids within folder
+          for (const importGrid of (importFolder.grids || [])) {
+            const newGridId = `grid${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+            const remappedCellStates = remapCellStates(importGrid.cellStates || {});
+            const newGrid = {
+              id: newGridId,
+              name: importGrid.name,
+              cellStates: remappedCellStates
+            };
+            newFolder.grids.push(newGrid);
+
+            if (user) {
+              await setDoc(doc(db, `users/${user.uid}/folders/${newFolderId}/grids`, newGridId), {
+                name: newGrid.name,
+                cellStates: remappedCellStates,
+                createdAt: new Date()
+              });
+            }
+          }
+
+          newFolders.push(newFolder);
+        }
+        setFolders(newFolders);
+
+        // Import root grids
+        const newRootGrids = [...rootGrids];
+        for (const importGrid of (importData.grids || [])) {
+          const newGridId = `grid${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+          const remappedCellStates = remapCellStates(importGrid.cellStates || {});
+          const newRootGrid = {
+            id: newGridId,
+            name: `${importGrid.name} (imported)`,
+            cellStates: remappedCellStates,
+            order: newFolders.length + newRootGrids.length
+          };
+          newRootGrids.push(newRootGrid);
+
+          if (user) {
+            await setDoc(doc(db, `users/${user.uid}/grids`, newGridId), {
+              name: newRootGrid.name,
+              cellStates: remappedCellStates,
+              order: newRootGrid.order,
+              createdAt: new Date()
+            });
+          }
+        }
+        setRootGrids(newRootGrids);
+
+        alert('Import successful!');
+      } catch (error) {
+        console.error('Import failed:', error);
+        alert(`Import failed: ${error.message}`);
+      }
+    };
+    input.click();
+  };
+
+  // Toggle export selection for an item
+  const toggleExportSelection = (itemId) => {
+    setSelectedForExport(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -688,6 +944,12 @@ function App() {
         onRenameGrid={renameGrid}
         onToggleFolder={toggleFolder}
         onLogout={handleLogout}
+        exportMode={exportMode}
+        setExportMode={setExportMode}
+        selectedForExport={selectedForExport}
+        onToggleExportSelection={toggleExportSelection}
+        onExportData={handleExportData}
+        onImportData={handleImportData}
       />
       
       <div className="main-content">

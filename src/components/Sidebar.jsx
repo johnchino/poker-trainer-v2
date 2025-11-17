@@ -5,9 +5,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { Icon } from './Icons';
 
 // Sortable Folder Component
-const SortableFolder = ({ folder, onToggle, onRename, onDelete, onAddGrid, onGridsReorder, children }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
-    id: folder.id 
+const SortableFolder = ({ folder, onToggle, onRename, onDelete, onAddGrid, onGridsReorder, children, exportMode, isSelected, onToggleSelection }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: folder.id
   });
 
   const style = {
@@ -34,6 +34,18 @@ const SortableFolder = ({ folder, onToggle, onRename, onDelete, onAddGrid, onGri
         {...listeners}
         onClick={() => { if (!isEditing) onToggle(folder.id); }}
       >
+        {exportMode && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelection(folder.id);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="export-checkbox"
+          />
+        )}
         <button
           onKeyDown={(e) => {
             if (e.key === ' ' || e.code === 'Space') {
@@ -195,6 +207,9 @@ const SortableRootGrid = (props) => {
   const onSelect = props.onSelect;
   const onRename = props.onRename;
   const onDelete = props.onDelete;
+  const exportMode = props.exportMode;
+  const isSelected = props.isSelected;
+  const onToggleSelection = props.onToggleSelection;
 
   const sortable = useSortable({ id: grid.id });
   const attributes = sortable.attributes;
@@ -235,6 +250,18 @@ const SortableRootGrid = (props) => {
         {...listeners}
         onClick={() => onSelect(grid.id)}
       >
+        {exportMode && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelection(grid.id);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="export-checkbox"
+          />
+        )}
         <div className="folder-toggle">
           <Icon icon="grid-3x3" size={16} />
           {isEditing ? (
@@ -283,9 +310,9 @@ const SortableRootGrid = (props) => {
   );
 };
 
-export const Sidebar = ({ 
-  user, 
-  folders, 
+export const Sidebar = ({
+  user,
+  folders,
   rootGrids,
   currentGrid,
   onFoldersChange,
@@ -298,7 +325,13 @@ export const Sidebar = ({
   onRenameFolder,
   onRenameGrid,
   onToggleFolder,
-  onLogout
+  onLogout,
+  exportMode,
+  setExportMode,
+  selectedForExport,
+  onToggleExportSelection,
+  onExportData,
+  onImportData
 }) => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -381,12 +414,34 @@ export const Sidebar = ({
           <Icon icon="plus" size={14} />
           <Icon icon="grid-3x3" size={16} />
         </button>
-        <button className="toolbar-btn" title="Upload">
-          <Icon icon="upload" size={14} />
+        <button
+          onClick={() => {
+            if (exportMode) {
+              onExportData();
+            } else {
+              setExportMode(true);
+            }
+          }}
+          className={`toolbar-btn ${exportMode ? 'active' : ''}`}
+          title={exportMode ? "Export Selected" : "Export Mode"}
+        >
+          <Icon icon="upload" size={16} />
         </button>
-        <button className="toolbar-btn" title="Download">
-          <Icon icon="download" size={14} />
+        <button onClick={onImportData} className="toolbar-btn" title="Import Ranges">
+          <Icon icon="import" size={16} />
         </button>
+        {exportMode && (
+          <button
+            onClick={() => {
+              setExportMode(false);
+              // Clear selection when canceling
+            }}
+            className="toolbar-btn"
+            title="Cancel Export"
+          >
+            <Icon icon="x" size={14} />
+          </button>
+        )}
         <div className="toolbar-spacer"></div>
         <button onClick={onLogout} className="toolbar-btn" title="Logout">
           <Icon icon="log-out" size={14} />
@@ -411,6 +466,9 @@ export const Sidebar = ({
                     onRename={onRenameFolder}
                     onDelete={onDeleteFolder}
                     onAddGrid={onAddGrid}
+                    exportMode={exportMode}
+                    isSelected={selectedForExport.has(folder.id)}
+                    onToggleSelection={onToggleExportSelection}
                   >
                     <DndContext
                       sensors={sensors}
@@ -445,6 +503,9 @@ export const Sidebar = ({
                     onSelect={onCurrentGridChange}
                     onRename={onRenameGrid}
                     onDelete={onDeleteGrid}
+                    exportMode={exportMode}
+                    isSelected={selectedForExport.has(grid.id)}
+                    onToggleSelection={onToggleExportSelection}
                   />
                 );
               }

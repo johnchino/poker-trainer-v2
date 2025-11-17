@@ -209,8 +209,25 @@ body {
   color: white;
 }
 
+.toolbar-btn.active {
+  background-color: #5DBA19;
+  color: white;
+}
+
+.toolbar-btn.active:hover {
+  background-color: #4AA615;
+}
+
 .toolbar-spacer {
   flex: 1;
+}
+
+.export-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #5DBA19;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .sidebar-content {
