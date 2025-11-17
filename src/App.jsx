@@ -40,6 +40,8 @@ function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportMode, setExportMode] = useState(false);
   const [selectedForExport, setSelectedForExport] = useState(new Set());
+  const [currentNote, setCurrentNote] = useState('');
+  const notesSaveTimeoutRef = useRef(null);
 
   // Training mode hook
   const {
@@ -841,6 +843,85 @@ function App() {
     });
   };
 
+  // Load current grid's note when grid changes
+  useEffect(() => {
+    if (!currentGrid) {
+      setCurrentNote('');
+      return;
+    }
+
+    // Check folder grids first
+    for (const folder of folders) {
+      const grid = folder.grids.find(g => g.id === currentGrid);
+      if (grid) {
+        setCurrentNote(grid.notes || '');
+        return;
+      }
+    }
+    // Check root grids
+    const rootGrid = rootGrids.find(g => g.id === currentGrid);
+    if (rootGrid) {
+      setCurrentNote(rootGrid.notes || '');
+    }
+  }, [currentGrid, folders, rootGrids]);
+
+  // Handle note change with debounced save
+  const handleNoteChange = (newNote) => {
+    setCurrentNote(newNote);
+
+    // Clear previous timeout
+    if (notesSaveTimeoutRef.current) {
+      clearTimeout(notesSaveTimeoutRef.current);
+    }
+
+    // Debounce save to Firestore
+    notesSaveTimeoutRef.current = setTimeout(async () => {
+      if (!user || !currentGrid) return;
+
+      // Check if current grid is in a folder
+      let isInFolder = false;
+      let targetFolderId = null;
+
+      for (const folder of folders) {
+        const grid = folder.grids.find(g => g.id === currentGrid);
+        if (grid) {
+          isInFolder = true;
+          targetFolderId = folder.id;
+          break;
+        }
+      }
+
+      try {
+        if (isInFolder) {
+          // Update folder grid
+          setFolders(prev => prev.map(folder => ({
+            ...folder,
+            grids: folder.grids.map(grid =>
+              grid.id === currentGrid ? { ...grid, notes: newNote } : grid
+            )
+          })));
+
+          await updateDoc(doc(db, `users/${user.uid}/folders/${targetFolderId}/grids`, currentGrid), {
+            notes: newNote,
+            updatedAt: new Date()
+          });
+        } else {
+          // Update root grid
+          setRootGrids(prev => prev.map(grid =>
+            grid.id === currentGrid ? { ...grid, notes: newNote } : grid
+          ));
+
+          await updateDoc(doc(db, `users/${user.uid}/grids`, currentGrid), {
+            notes: newNote,
+            updatedAt: new Date()
+          });
+        }
+      } catch (error) {
+        console.error('Error saving note:', error);
+      }
+    }, 500); // 500ms debounce
+  };
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -1003,6 +1084,18 @@ function App() {
                   <span className={`toggle-label ${!simpleView ? 'active' : ''}`}>Full</span>
                 </div>
               </div>
+              {!trainingMode && (
+                <div className="notes-section">
+                  <div className="notes-container">
+                    <textarea
+                      className="notes-textarea"
+                      placeholder="take notes"
+                      value={currentNote}
+                      onChange={(e) => handleNoteChange(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="tools-section">
