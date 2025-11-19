@@ -241,6 +241,7 @@ body {
   user-select: none;
   will-change: transform, opacity;
   backface-visibility: hidden;
+  cursor: default !important;
 }
 
 .folder-header {
@@ -248,7 +249,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  cursor: default;
+  cursor: default !important;
   transition: background-color 0.2s;
 }
 
@@ -344,6 +345,7 @@ body {
   user-select: none;
   will-change: transform, opacity;
   backface-visibility: hidden;
+  cursor: default !important;
 }
 
 /* Grid styling - all grids are now wrapped */
@@ -352,7 +354,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  cursor: default;
+  cursor: default !important;
   transition: background-color 0.2s;
   user-select: none;
 }
