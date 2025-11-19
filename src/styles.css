@@ -239,7 +239,6 @@ body {
 /* Sortable Folder */
 .sortable-folder {
   user-select: none;
-  transition: transform 200ms ease, opacity 200ms ease;
   will-change: transform, opacity;
   backface-visibility: hidden;
 }
@@ -359,7 +358,6 @@ body {
 .sortable-grid-wrapper,
 .grid-with-children-container {
   user-select: none;
-  transition: transform 200ms ease, opacity 200ms ease;
   will-change: transform, opacity;
   backface-visibility: hidden;
 }

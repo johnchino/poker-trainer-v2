@@ -58,12 +58,13 @@ const SortableItem = ({
   onToggleSelection
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id
+    id: item.id,
+    animateLayoutChanges: () => true,
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: isDragging ? 'none' : (transition || 'transform 200ms ease'),
+    transition: isDragging ? 'none' : (transition || undefined),
     opacity: isDragging ? 0 : 1,
   };
 
