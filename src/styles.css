@@ -344,7 +344,7 @@ body {
   user-select: none;
   will-change: transform, opacity;
   backface-visibility: hidden;
-  margin-left: 1.5rem; /* Indentation moved from parent to child */
+  /* margin-left removed - now applied dynamically via isNested prop in component */
 }
 
 /* Grid styling - all grids are now wrapped */

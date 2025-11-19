@@ -54,7 +54,8 @@ const DraggableItem = ({
   onAddChild,
   exportMode,
   isSelected,
-  onToggleSelection
+  onToggleSelection,
+  isNested = false
 }) => {
   const { isEditing, editValue, setEditValue, startEdit, handleSave } = useInlineEdit(
     item.name,
@@ -83,6 +84,7 @@ const DraggableItem = ({
           style={{
             ...provided.draggableProps.style,
             opacity: snapshot.isDragging ? 0.5 : 1,
+            marginLeft: isNested && !isFolder ? '1.5rem' : '0',
           }}
         >
           {isFolder ? (
@@ -144,6 +146,7 @@ const DraggableItem = ({
                           exportMode={exportMode}
                           isSelected={isSelected}
                           onToggleSelection={onToggleSelection}
+                          isNested={true}
                         />
                       ))}
                       {provided.placeholder}
