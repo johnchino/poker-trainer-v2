@@ -356,10 +356,12 @@ body {
   transition: transform 200ms ease, opacity 200ms ease;
 }
 
-/* Prevent margin shift during drag for grids with children */
+/* Remove negative margins from grids inside wrappers (match folder-header pattern) */
+.sortable-grid-wrapper > .sortable-grid,
 .sortable-grid.grid-with-children {
   margin-left: 0;
   padding-left: 1rem;
+  position: static; /* Remove relative positioning to match folder-header */
 }
 
 .sortable-grid:hover {
