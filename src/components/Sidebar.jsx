@@ -343,17 +343,64 @@ export const Sidebar = ({
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = items.findIndex(item => item.id === active.id);
-    const newIndex = items.findIndex(item => item.id === over.id);
+    const activeItem = findItemById(active.id, items);
+    const overItem = findItemById(over.id, items);
 
-    if (oldIndex === -1 || newIndex === -1) return;
+    if (!activeItem || !overItem) return;
 
-    const newItems = arrayMove(items, oldIndex, newIndex).map((item, index) => ({
-      ...item,
-      order: index
-    }));
+    const activeParent = findParentItem(active.id, items);
+    const overParent = findParentItem(over.id, items);
 
-    onItemsChange(newItems);
+    // Case 1: Both items are at root level
+    if (!activeParent && !overParent) {
+      const oldIndex = items.findIndex(item => item.id === active.id);
+      const newIndex = items.findIndex(item => item.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const newItems = arrayMove(items, oldIndex, newIndex).map((item, index) => ({
+        ...item,
+        order: index
+      }));
+
+      onItemsChange(newItems);
+      return;
+    }
+
+    // Case 2: Both items have the same parent (reordering within folder)
+    if (activeParent && overParent && activeParent.id === overParent.id) {
+      const oldIndex = activeParent.children.findIndex(child => child.id === active.id);
+      const newIndex = activeParent.children.findIndex(child => child.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      // Reorder children
+      const reorderedChildren = arrayMove(activeParent.children, oldIndex, newIndex).map((child, index) => ({
+        ...child,
+        order: index
+      }));
+
+      // Update the parent with reordered children
+      const updateTree = (items) => {
+        return items.map(item => {
+          if (item.id === activeParent.id) {
+            return { ...item, children: reorderedChildren };
+          }
+          if (item.children && item.children.length > 0) {
+            return { ...item, children: updateTree(item.children) };
+          }
+          return item;
+        });
+      };
+
+      const newItems = updateTree(items);
+      onItemsChange(newItems);
+      return;
+    }
+
+    // Case 3: Moving between different parents or levels
+    // For now, we'll just prevent cross-parent moves to keep it simple
+    // You could implement move logic here if needed
   };
 
   // Determine if active item is nested (has a parent)
