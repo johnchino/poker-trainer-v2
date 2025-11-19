@@ -341,6 +341,28 @@ export const Sidebar = ({
     setActiveId(event.active.id);
   };
 
+  // Custom collision detection to prevent folder interference
+  const customCollisionDetection = (args) => {
+    const activeItem = findItemById(activeId, items);
+    if (!activeItem) return closestCenter(args);
+
+    const activeParent = findParentItem(activeId, items);
+
+    // If dragging a grid inside a folder, filter out the parent folder as a collision target
+    if (activeParent) {
+      const filteredRects = args.droppableRects.filter(([id]) => {
+        return id !== activeParent.id;
+      });
+
+      return closestCenter({
+        ...args,
+        droppableRects: new Map(filteredRects),
+      });
+    }
+
+    return closestCenter(args);
+  };
+
   const handleDragEnd = (event) => {
     setActiveId(null);
     const { active, over } = event;
@@ -449,7 +471,7 @@ export const Sidebar = ({
       <div className="sidebar-content">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           measuring={measuring}
