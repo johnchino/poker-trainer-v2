@@ -6,7 +6,7 @@ import { Icon } from './Icons';
 import { ItemActions } from './ItemActions';
 import { SidebarToolbar } from './SidebarToolbar';
 import { useInlineEdit } from '../hooks/useInlineEdit';
-import { canAddChild, findItemById } from '../utils/itemHelpers';
+import { canAddChild, findItemById, findParentItem } from '../utils/itemHelpers';
 
 // Reusable inline edit input component
 const InlineEditInput = ({ value, onChange, onSave, onKeyDown, className }) => (
@@ -63,8 +63,8 @@ const SortableItem = ({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0 : 1,
+    transition: transition || 'transform 200ms ease',
+    opacity: isDragging ? 0.4 : 1,
   };
 
   const { isEditing, editValue, setEditValue, startEdit, handleSave } = useInlineEdit(
@@ -256,26 +256,41 @@ const SortableItem = ({
 };
 
 // Drag overlay component
-const DragOverlayContent = ({ item }) => {
+const DragOverlayContent = ({ item, isNested }) => {
   if (!item) return null;
 
+  const isFolder = item.type === 'folder';
+
+  // Add indentation for nested grids
+  const overlayStyle = {
+    cursor: 'grabbing',
+    opacity: 0.95,
+    paddingLeft: isNested && !isFolder ? '1.5rem' : '0',
+  };
+
+  const itemStyle = {
+    background: 'linear-gradient(135deg, #374151 0%, #2d3748 100%)',
+    borderRadius: '6px',
+    padding: '0.5rem 1rem',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    minWidth: '200px',
+  };
+
   return (
-    <div style={{ cursor: 'grabbing', opacity: 0.9 }}>
-      <div
-        className={`sortable-${item.type === 'folder' ? 'folder' : 'grid'}`}
-        style={{ background: '#374151', borderRadius: '4px' }}
-      >
-        <div className={item.type === 'folder' ? 'folder-header' : 'grid-button'}>
-          {item.type === 'folder' ? (
+    <div style={overlayStyle}>
+      <div style={itemStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {isFolder ? (
             <>
               <Icon icon={item.expanded ? 'chevron-down' : 'chevron-right'} size={12} />
               <Icon icon="folder" size={16} />
-              <span className="folder-name">{item.name}</span>
+              <span style={{ color: 'white', fontSize: '0.875rem' }}>{item.name}</span>
             </>
           ) : (
             <>
               <Icon icon="grid-3x3" size={14} />
-              <span className="grid-name">{item.name}</span>
+              <span style={{ color: 'white', fontSize: '0.875rem' }}>{item.name}</span>
             </>
           )}
         </div>
@@ -341,6 +356,14 @@ export const Sidebar = ({
     onItemsChange(newItems);
   };
 
+  // Determine if active item is nested (has a parent)
+  const getActiveItemInfo = () => {
+    if (!activeId) return { item: null, isNested: false };
+    const item = findItemById(activeId, items);
+    const parent = findParentItem(activeId, items);
+    return { item, isNested: !!parent };
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -384,7 +407,10 @@ export const Sidebar = ({
             ))}
           </SortableContext>
           <DragOverlay>
-            {activeId ? <DragOverlayContent item={findItemById(activeId, items)} /> : null}
+            {(() => {
+              const { item, isNested } = getActiveItemInfo();
+              return item ? <DragOverlayContent item={item} isNested={isNested} /> : null;
+            })()}
           </DragOverlay>
         </DndContext>
       </div>
