@@ -345,12 +345,32 @@ export const Sidebar = ({
   const customCollisionDetection = (args) => {
     if (!activeId) return closestCenter(args);
 
+    const activeItem = findItemById(activeId, items);
     const activeParent = findParentItem(activeId, items);
 
     // If dragging a grid inside a folder, filter out the parent folder as a collision target
     if (activeParent) {
       const filteredRects = Array.from(args.droppableRects.entries()).filter(
         ([id]) => id !== activeParent.id
+      );
+
+      return closestCenter({
+        ...args,
+        droppableRects: new Map(filteredRects),
+      });
+    }
+
+    // If dragging a folder or root-level grid, filter out ALL nested items (only allow collision with siblings)
+    if (activeItem && (!activeParent)) {
+      const filteredRects = Array.from(args.droppableRects.entries()).filter(
+        ([id]) => {
+          // Allow collision with the dragged item itself
+          if (id === activeId) return true;
+
+          // Only allow collision with root-level items (items without parents)
+          const targetParent = findParentItem(id, items);
+          return !targetParent;
+        }
       );
 
       return closestCenter({
