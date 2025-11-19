@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, MeasuringStrategy } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Icon } from './Icons';
 import { ItemActions } from './ItemActions';
@@ -334,6 +334,13 @@ export const Sidebar = ({
     })
   );
 
+  // Custom measuring configuration to prevent snap-back during drag
+  const measuring = {
+    droppable: {
+      strategy: MeasuringStrategy.Always,
+    },
+  };
+
   const handleDragStart = (event) => {
     setActiveId(event.active.id);
   };
@@ -434,6 +441,7 @@ export const Sidebar = ({
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
+          measuring={measuring}
         >
           <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
             {items.map(item => (

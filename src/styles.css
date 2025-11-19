@@ -337,7 +337,6 @@ body {
 .grids-list {
   padding-bottom: 0.5rem;
   padding-left: 1.5rem;
-  contain: layout style;
 }
 
 .sortable-grid {
@@ -363,7 +362,6 @@ body {
   transition: transform 200ms ease, opacity 200ms ease;
   will-change: transform, opacity;
   backface-visibility: hidden;
-  contain: layout style paint;
 }
 
 /* Clean styles for grids inside wrappers (match folder-header exactly) */
