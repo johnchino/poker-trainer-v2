@@ -84,7 +84,6 @@ const DraggableItem = ({
           style={{
             ...provided.draggableProps.style,
             opacity: snapshot.isDragging ? 0.5 : 1,
-            marginLeft: isNested && !isFolder ? '1.5rem' : '0',
           }}
         >
           {isFolder ? (
@@ -156,7 +155,12 @@ const DraggableItem = ({
               )}
             </div>
           ) : (
-            <div className="sortable-grid-wrapper">
+            <div
+              className="sortable-grid-wrapper"
+              style={{
+                marginLeft: isNested ? '1.5rem' : '0',
+              }}
+            >
               <div
                 className={`sortable-grid group ${isActive ? 'active' : ''}`}
                 {...provided.dragHandleProps}
