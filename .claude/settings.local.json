@@ -6,7 +6,12 @@
       "Bash(ps:*)",
       "Bash(git restore:*)",
       "Bash(npm run build:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(taskkill:*)",
+      "Bash(md5sum:*)",
+      "Bash(python3:*)",
+      "Bash(tasklist:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

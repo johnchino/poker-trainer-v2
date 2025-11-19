@@ -140,7 +140,11 @@ const getColorValue = (colorId, colors, mixedColors) => {
   if (mixedColor) {
     const color1 = mixedColor.color1;
     const color2 = mixedColor.color2;
-    return `linear-gradient(135deg, ${color1} 50%, ${color2} 50%)`;
+    const ratio = mixedColor.ratio ?? 50;
+    const showSlider = mixedColor.showSlider ?? false;
+    return showSlider
+      ? `linear-gradient(to right, ${color1} ${ratio}%, ${color2} ${ratio}%)`
+      : `linear-gradient(135deg, ${color1} 0%, ${color1} 50%, ${color2} 50%, ${color2} 100%)`;
   }
 
   return null;

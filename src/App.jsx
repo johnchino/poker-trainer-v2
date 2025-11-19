@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { Sidebar } from './components/Sidebar';
 import { PokerGrid } from './components/PokerGrid';
 import { ColorPicker } from './components/ColorPicker';
@@ -10,6 +10,17 @@ import { Icon } from './components/Icons';
 import { useTrainingMode } from './hooks/useTrainingMode';
 import { TrainingControls } from './components/TrainingControls';
 import { TrainingResults } from './components/TrainingResults';
+import {
+  migrateToItems,
+  flattenItems,
+  buildTree,
+  findItemById,
+  getAllDescendantIds,
+  updateItemInTree,
+  removeItemFromTree,
+  addItemToTree,
+  canAddChild
+} from './utils/itemHelpers';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -20,6 +31,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [folders, setFolders] = useState([]);
   const [rootGrids, setRootGrids] = useState([]);
+  const [items, setItems] = useState([]); // NEW: Unified hierarchical structure
+  const [useNewStructure, setUseNewStructure] = useState(false); // Flag to switch between old and new
   const [currentGrid, setCurrentGrid] = useState(null);
   const [selectedColor, setSelectedColor] = useState('green');
   const [colors, setColors] = useState([
@@ -32,7 +45,7 @@ function App() {
   const [editingMixedColorName, setEditingMixedColorName] = useState('');
   const [simpleView, setSimpleView] = useState(true);
   const [mixedColors, setMixedColors] = useState([
-    { id: 'mixed1', color1: '#5DBA19', color2: '#B9107A', name: 'mixed action', enabled: true }
+    { id: 'mixed1', color1: '#5DBA19', color2: '#B9107A', name: 'mixed action', enabled: true, ratio: 50, showSlider: false, textColor: 'white' }
   ]);
   const [paintMode, setPaintMode] = useState('solid');
   const [selectedMixedColor, setSelectedMixedColor] = useState('mixed1');
@@ -74,51 +87,139 @@ function App() {
 
   const loadUserData = async (userId) => {
     try {
-      // Load folders and their grids
-      const foldersSnapshot = await getDocs(collection(db, `users/${userId}/folders`));
-      const loadedFolders = [];
-      for (const folderDoc of foldersSnapshot.docs) {
-        const folderData = folderDoc.data();
-        const gridsSnapshot = await getDocs(collection(db, `users/${userId}/folders/${folderDoc.id}/grids`));
-        const grids = gridsSnapshot.docs.map(gridDoc => ({ id: gridDoc.id, ...gridDoc.data() }));
-        loadedFolders.push({
-          id: folderDoc.id,
-          name: folderData.name,
-          expanded: folderData.expanded || false,
-          order: folderData.order ?? loadedFolders.length,
-          grids
-        });
-      }
+      // Try loading new items structure first
+      const itemsSnapshot = await getDocs(collection(db, `users/${userId}/items`));
 
-      // Load root-level grids
-      const rootGridsSnapshot = await getDocs(collection(db, `users/${userId}/grids`));
-      const loadedRootGrids = rootGridsSnapshot.docs.map((gridDoc, index) => ({
-        id: gridDoc.id,
-        ...gridDoc.data(),
-        order: gridDoc.data().order ?? (loadedFolders.length + index)
-      }));
+      if (itemsSnapshot.docs.length > 0) {
+        // NEW STRUCTURE EXISTS - Load it
+        const flatItems = itemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const treeItems = buildTree(flatItems);
+        setItems(treeItems);
+        setUseNewStructure(true);
 
-      if (loadedFolders.length === 0 && loadedRootGrids.length === 0) {
-        const defaultFolder = await createDefaultFolder(userId);
-        setFolders([defaultFolder]);
-        setRootGrids([]);
-        setCurrentGrid(defaultFolder.grids[0].id);
+        // Find first grid for current selection
+        const firstGrid = findFirstGrid(treeItems);
+        setCurrentGrid(firstGrid?.id || null);
       } else {
-        // Sort both by order for consistent display
-        loadedFolders.sort((a, b) => a.order - b.order);
-        loadedRootGrids.sort((a, b) => a.order - b.order);
+        // OLD STRUCTURE - Load and migrate
+        // Load folders and their grids
+        const foldersSnapshot = await getDocs(collection(db, `users/${userId}/folders`));
+        const loadedFolders = [];
+        for (const folderDoc of foldersSnapshot.docs) {
+          const folderData = folderDoc.data();
+          const gridsSnapshot = await getDocs(collection(db, `users/${userId}/folders/${folderDoc.id}/grids`));
+          const grids = gridsSnapshot.docs.map(gridDoc => ({ id: gridDoc.id, ...gridDoc.data() }));
+          loadedFolders.push({
+            id: folderDoc.id,
+            name: folderData.name,
+            expanded: folderData.expanded || false,
+            order: folderData.order ?? loadedFolders.length,
+            grids
+          });
+        }
 
+        // Load root-level grids
+        const rootGridsSnapshot = await getDocs(collection(db, `users/${userId}/grids`));
+        const loadedRootGrids = rootGridsSnapshot.docs.map((gridDoc, index) => ({
+          id: gridDoc.id,
+          ...gridDoc.data(),
+          order: gridDoc.data().order ?? (loadedFolders.length + index)
+        }));
+
+        if (loadedFolders.length === 0 && loadedRootGrids.length === 0) {
+          // Create default structure using new format
+          const defaultItems = await createDefaultItems(userId);
+          setItems(defaultItems);
+          setUseNewStructure(true);
+          const firstGrid = findFirstGrid(defaultItems);
+          setCurrentGrid(firstGrid?.id || null);
+        } else {
+          // MIGRATE old data to new structure
+          const migratedItems = migrateToItems(loadedFolders, loadedRootGrids);
+          setItems(migratedItems);
+          setUseNewStructure(true);
+
+          // Save migrated data to Firestore
+          await saveMigratedItems(userId, migratedItems);
+
+          // Set current grid
+          const firstGrid = findFirstGrid(migratedItems);
+          setCurrentGrid(firstGrid?.id || null);
+        }
+
+        // Keep old state for backward compatibility during transition
         setFolders(loadedFolders);
         setRootGrids(loadedRootGrids);
-        // Set current grid to first available (folder grid or root grid)
-        const firstFolderGrid = loadedFolders[0]?.grids[0]?.id;
-        const firstRootGrid = loadedRootGrids[0]?.id;
-        setCurrentGrid(firstFolderGrid || firstRootGrid || null);
       }
+
       await loadColors(userId);
     } catch (error) {
       console.error('Error loading data:', error);
     }
+  };
+
+  // Helper: Find first grid in tree structure
+  const findFirstGrid = (items) => {
+    for (const item of items) {
+      if (item.type === 'grid') return item;
+      if (item.children?.length > 0) {
+        const found = findFirstGrid(item.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Helper: Create default items structure in new format
+  const createDefaultItems = async (userId) => {
+    const folderId = `folder${Date.now()}`;
+    const gridId = `grid${Date.now()}`;
+
+    const defaultItems = [
+      {
+        id: folderId,
+        name: 'My Ranges',
+        type: 'folder',
+        expanded: true,
+        order: 0,
+        parentId: null,
+        children: [
+          {
+            id: gridId,
+            name: 'BB vs SB',
+            type: 'grid',
+            expanded: false,
+            order: 0,
+            parentId: folderId,
+            cellStates: {},
+            notes: '',
+            children: []
+          }
+        ]
+      }
+    ];
+
+    // Save to Firestore
+    await saveMigratedItems(userId, defaultItems);
+
+    return defaultItems;
+  };
+
+  // Helper: Save items tree to Firestore
+  const saveMigratedItems = async (userId, items) => {
+    const batch = writeBatch(db);
+    const flatItems = flattenItems(items);
+
+    // Write each item to Firestore
+    flatItems.forEach(item => {
+      const docRef = doc(db, `users/${userId}/items`, item.id);
+      batch.set(docRef, {
+        ...item,
+        updatedAt: new Date()
+      });
+    });
+
+    await batch.commit();
   };
 
   const createDefaultFolder = async (userId) => {
@@ -149,7 +250,14 @@ function App() {
         const data = colorsDoc.data();
         const validatedColors = (data.solidColors || []).map(c => ({ ...c, textColor: c.textColor || 'white' }));
         setColors(validatedColors);
-        const validatedMixedColors = (data.mixedColors || []).map(mc => ({ ...mc, color1: mc.color1?.startsWith("#") ? mc.color1 : "#5DBA19", color2: mc.color2?.startsWith("#") ? mc.color2 : "#B9107A" }));
+        const validatedMixedColors = (data.mixedColors || []).map(mc => ({
+  ...mc,
+  color1: mc.color1?.startsWith("#") ? mc.color1 : "#5DBA19",
+  color2: mc.color2?.startsWith("#") ? mc.color2 : "#B9107A",
+  ratio: mc.ratio ?? 50,
+  showSlider: mc.showSlider ?? false,
+  textColor: mc.textColor || 'white'
+}));
         setMixedColors(validatedMixedColors);
         if (data.solidColors && data.solidColors.length > 0) {
           setSelectedColor(data.solidColors[0].id);
@@ -163,7 +271,7 @@ function App() {
           { id: 'red', name: 'action 2', color: '#B9107A', enabled: true, textColor: 'white' }
         ];
         const defaultMixedColors = [
-          { id: 'mixed1', color1: '#5DBA19', color2: '#B9107A', name: 'mixed action', enabled: true }
+          { id: 'mixed1', color1: '#5DBA19', color2: '#B9107A', name: 'mixed action', enabled: true, ratio: 50, showSlider: false, textColor: 'white' }
         ];
         setColors(defaultSolidColors);
         setMixedColors(defaultMixedColors);
@@ -191,6 +299,16 @@ function App() {
   };
 
   const getCurrentCellStates = () => {
+    // If using new structure, search in items tree
+    if (useNewStructure && items.length > 0) {
+      const item = findItemById(currentGrid, items);
+      if (item && item.type === 'grid') {
+        return item.cellStates || {};
+      }
+      return {};
+    }
+
+    // Fallback to old structure
     // Check folder grids first
     for (const folder of folders) {
       const grid = folder.grids.find(g => g.id === currentGrid);
@@ -203,6 +321,22 @@ function App() {
   };
 
   const updateCurrentCellStates = async (newStates) => {
+    // If using new structure, update in items tree
+    if (useNewStructure && items.length > 0) {
+      const updatedItems = updateItemInTree(items, currentGrid, { cellStates: newStates });
+      setItems(updatedItems);
+
+      // Update in Firestore
+      if (user) {
+        await updateDoc(doc(db, `users/${user.uid}/items`, currentGrid), {
+          cellStates: newStates,
+          updatedAt: new Date()
+        });
+      }
+      return;
+    }
+
+    // Fallback to old structure
     // Check if current grid is in a folder
     let isInFolder = false;
     let targetFolderId = null;
@@ -344,13 +478,122 @@ function App() {
   };
 
   const toggleFolder = async (folderId) => {
-    const updatedFolders = folders.map(folder => 
+    const updatedFolders = folders.map(folder =>
       folder.id === folderId ? { ...folder, expanded: !folder.expanded } : folder
     );
     setFolders(updatedFolders);
     if (user) {
       const folder = updatedFolders.find(f => f.id === folderId);
       await updateDoc(doc(db, `users/${user.uid}/folders`, folderId), { expanded: folder.expanded });
+    }
+  };
+
+  // NEW STRUCTURE CRUD FUNCTIONS
+  const handleItemsChange = async (newItems) => {
+    setItems(newItems);
+
+    // Update order in Firestore
+    if (user) {
+      const batch = writeBatch(db);
+      newItems.forEach((item, index) => {
+        const docRef = doc(db, `users/${user.uid}/items`, item.id);
+        batch.update(docRef, { order: index });
+      });
+      await batch.commit();
+    }
+  };
+
+  const addItem = async (parentId = null, type = 'grid') => {
+    const itemId = `${type}${Date.now()}`;
+    const maxOrder = (items || []).filter(i => i.parentId === parentId).length;
+
+    const newItem = {
+      id: itemId,
+      name: type === 'folder' ? 'New Folder' : 'New Grid',
+      type: type,
+      expanded: type === 'folder',
+      order: maxOrder,
+      parentId: parentId,
+      children: []
+    };
+
+    if (type === 'grid') {
+      newItem.cellStates = {};
+      newItem.notes = '';
+    }
+
+    // Add to tree
+    const updatedItems = addItemToTree(items, newItem, parentId);
+    setItems(updatedItems);
+
+    // Save to Firestore
+    if (user) {
+      await setDoc(doc(db, `users/${user.uid}/items`, itemId), {
+        ...newItem,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+
+    // If it's a grid at root level, select it
+    // Keep parent grid active when adding nested grids
+    if (type === 'grid' && parentId === null) {
+      setCurrentGrid(itemId);
+    }
+  };
+
+  const deleteItem = async (itemId) => {
+    const item = findItemById(itemId, items);
+    if (!item) return;
+
+    // Get all descendant IDs for deletion
+    const idsToDelete = getAllDescendantIds(item);
+
+    // Remove from tree
+    const updatedItems = removeItemFromTree(items, itemId);
+    setItems(updatedItems);
+
+    // Delete from Firestore (all descendants)
+    if (user) {
+      const batch = writeBatch(db);
+      idsToDelete.forEach(id => {
+        const docRef = doc(db, `users/${user.uid}/items`, id);
+        batch.delete(docRef);
+      });
+      await batch.commit();
+    }
+
+    // If deleted item was current grid, switch to another
+    if (currentGrid === itemId || idsToDelete.includes(currentGrid)) {
+      const firstGrid = findFirstGrid(updatedItems);
+      setCurrentGrid(firstGrid?.id || null);
+    }
+  };
+
+  const renameItem = async (itemId, newName) => {
+    const updatedItems = updateItemInTree(items, itemId, { name: newName });
+    setItems(updatedItems);
+
+    if (user) {
+      await updateDoc(doc(db, `users/${user.uid}/items`, itemId), {
+        name: newName,
+        updatedAt: new Date()
+      });
+    }
+  };
+
+  const toggleItem = async (itemId) => {
+    const item = findItemById(itemId, items);
+    if (!item) return;
+
+    const updatedItems = updateItemInTree(items, itemId, { expanded: !item.expanded });
+    setItems(updatedItems);
+
+    if (user) {
+      await updateDoc(doc(db, `users/${user.uid}/items`, itemId), {
+        expanded: !item.expanded,
+        updatedAt: new Date()
+      });
     }
   };
 
@@ -453,6 +696,16 @@ function App() {
     if (user) await saveColors(user.uid, newColors, mixedColors);
   };
 
+  const toggleMixedTextColor = async (mixedColorId) => {
+    const newMixedColors = mixedColors.map(m =>
+      m.id === mixedColorId
+        ? { ...m, textColor: m.textColor === 'white' ? 'black' : 'white' }
+        : m
+    );
+    setMixedColors(newMixedColors);
+    if (user) await saveColors(user.uid, colors, newMixedColors);
+  };
+
   const startEditingMixedColor = (mixedColorId) => {
     const mixedColor = mixedColors.find(m => m.id === mixedColorId);
     setEditingMixedColorId(mixedColorId);
@@ -467,13 +720,40 @@ function App() {
     if (user) saveColors(user.uid, colors, newMixedColors);
   };
 
+  const toggleMixedColorSlider = (mixedColorId) => {
+    const newMixedColors = mixedColors.map(m => {
+      if (m.id === mixedColorId) {
+        const newShowSlider = !m.showSlider;
+        return {
+          ...m,
+          showSlider: newShowSlider,
+          ratio: newShowSlider ? m.ratio : 50
+        };
+      }
+      return m;
+    });
+    setMixedColors(newMixedColors);
+    if (user) saveColors(user.uid, colors, newMixedColors);
+  };
+
+  const updateMixedColorRatio = (mixedColorId, newRatio) => {
+    const newMixedColors = mixedColors.map(m =>
+      m.id === mixedColorId ? { ...m, ratio: newRatio } : m
+    );
+    setMixedColors(newMixedColors);
+    if (user) saveColors(user.uid, colors, newMixedColors);
+  };
+
   const addMixedColor = () => {
     const newMixedColor = {
       id: `mixed${Date.now()}`,
       name: `mixed ${mixedColors.length + 1}`,
       color1: colors[0]?.color || '#5DBA19',
       color2: colors[1]?.color || '#B9107A',
-      enabled: true
+      enabled: true,
+      ratio: 50,
+      showSlider: false,
+      textColor: 'white'
     };
     const newMixedColors = [...mixedColors, newMixedColor];
     setMixedColors(newMixedColors);
@@ -722,7 +1002,9 @@ function App() {
             mixedColorIdMap[importMixed.id] = newId;
             newMixedColors.push({
               ...importMixed,
-              id: newId
+              id: newId,
+              ratio: importMixed.ratio ?? 50,
+              showSlider: importMixed.showSlider ?? false
             });
           } else {
             mixedColorIdMap[importMixed.id] = importMixed.id;
@@ -850,6 +1132,16 @@ function App() {
       return;
     }
 
+    // If using new structure
+    if (useNewStructure && items.length > 0) {
+      const item = findItemById(currentGrid, items);
+      if (item && item.type === 'grid') {
+        setCurrentNote(item.notes || '');
+      }
+      return;
+    }
+
+    // Fallback to old structure
     // Check folder grids first
     for (const folder of folders) {
       const grid = folder.grids.find(g => g.id === currentGrid);
@@ -863,7 +1155,7 @@ function App() {
     if (rootGrid) {
       setCurrentNote(rootGrid.notes || '');
     }
-  }, [currentGrid, folders, rootGrids]);
+  }, [currentGrid, folders, rootGrids, items, useNewStructure]);
 
   // Handle note change with debounced save
   const handleNoteChange = (newNote) => {
@@ -878,20 +1170,33 @@ function App() {
     notesSaveTimeoutRef.current = setTimeout(async () => {
       if (!user || !currentGrid) return;
 
-      // Check if current grid is in a folder
-      let isInFolder = false;
-      let targetFolderId = null;
-
-      for (const folder of folders) {
-        const grid = folder.grids.find(g => g.id === currentGrid);
-        if (grid) {
-          isInFolder = true;
-          targetFolderId = folder.id;
-          break;
-        }
-      }
-
       try {
+        // If using new structure
+        if (useNewStructure && items.length > 0) {
+          const updatedItems = updateItemInTree(items, currentGrid, { notes: newNote });
+          setItems(updatedItems);
+
+          await updateDoc(doc(db, `users/${user.uid}/items`, currentGrid), {
+            notes: newNote,
+            updatedAt: new Date()
+          });
+          return;
+        }
+
+        // Fallback to old structure
+        // Check if current grid is in a folder
+        let isInFolder = false;
+        let targetFolderId = null;
+
+        for (const folder of folders) {
+          const grid = folder.grids.find(g => g.id === currentGrid);
+          if (grid) {
+            isInFolder = true;
+            targetFolderId = folder.id;
+            break;
+          }
+        }
+
         if (isInFolder) {
           // Update folder grid
           setFolders(prev => prev.map(folder => ({
@@ -1005,7 +1310,9 @@ function App() {
     }
   };
 
-  const currentGridData = [...folders.flatMap(f => f.grids), ...rootGrids].find(g => g.id === currentGrid);
+  const currentGridData = useNewStructure && items.length > 0
+    ? findItemById(currentGrid, items)
+    : [...folders.flatMap(f => f.grids), ...rootGrids].find(g => g.id === currentGrid);
 
   return (
     <div className="app">
@@ -1013,17 +1320,24 @@ function App() {
         user={user}
         folders={folders}
         rootGrids={rootGrids}
+        items={items}
+        useNewStructure={useNewStructure}
         currentGrid={currentGrid}
         onFoldersChange={handleFoldersChange}
         onRootGridsChange={handleRootGridsChange}
+        onItemsChange={handleItemsChange}
         onCurrentGridChange={setCurrentGrid}
         onAddFolder={addFolder}
         onAddGrid={addGrid}
+        onAddItem={addItem}
         onDeleteFolder={deleteFolder}
         onDeleteGrid={deleteGrid}
+        onDeleteItem={deleteItem}
         onRenameFolder={renameFolder}
         onRenameGrid={renameGrid}
+        onRenameItem={renameItem}
         onToggleFolder={toggleFolder}
+        onToggleItem={toggleItem}
         onLogout={handleLogout}
         exportMode={exportMode}
         setExportMode={setExportMode}
@@ -1188,58 +1502,106 @@ function App() {
                   <h3 className="section-subtitle">Mixed Colors</h3>
                   <div className="colors-list">
                     {mixedColors.map((mixedColor) => (
-                      <div key={mixedColor.id} className="color-item group">
-                        <button
-                          onClick={() => {
-                            setPaintMode('mixed');
-                            setSelectedMixedColor(mixedColor.id);
-                          }}
-                          className={`color-radio ${paintMode === 'mixed' && selectedMixedColor === mixedColor.id ? 'selected' : ''}`}
-                        >
-                          {paintMode === 'mixed' && selectedMixedColor === mixedColor.id && <div className="radio-dot"></div>}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setPaintMode('mixed');
-                            setSelectedMixedColor(mixedColor.id);
-                          }}
-                          className={`color-swatch ${paintMode === 'mixed' && selectedMixedColor === mixedColor.id ? 'selected' : ''}`}
-                          style={{
-                            background: `linear-gradient(135deg, ${mixedColor.color1} 0%, ${mixedColor.color1} 50%, ${mixedColor.color2} 50%, ${mixedColor.color2} 100%)`
-                          }}
-                        ></button>
-                        {editingMixedColorId === mixedColor.id ? (
-                          <input
-                            type="text"
-                            value={editingMixedColorName}
-                            onChange={(e) => setEditingMixedColorName(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && saveMixedColorName()}
-                            onBlur={saveMixedColorName}
-                            className="color-name-input"
-                            autoFocus
-                          />
-                        ) : (
-                          <button onClick={() => startEditingMixedColor(mixedColor.id)} className="color-name-btn">
-                            {mixedColor.name}
-                          </button>
-                        )}
-                        <div className="mixed-color-actions">
+                      <div key={mixedColor.id}>
+                        <div className="color-item group">
                           <button
-                            onClick={() => setColorPickerTarget({ type: 'mixed1', id: mixedColor.id })}
-                            className="mixed-color-box"
-                            style={{ backgroundColor: mixedColor.color1 }}
-                            title="Change First Color"
-                          ></button>
-                          <button
-                            onClick={() => setColorPickerTarget({ type: 'mixed2', id: mixedColor.id })}
-                            className="mixed-color-box"
-                            style={{ backgroundColor: mixedColor.color2 }}
-                            title="Change Second Color"
-                          ></button>
-                          <button onClick={() => deleteMixedColor(mixedColor.id)} className="icon-btn-hidden icon-btn-delete" title="Delete">
-                            <Icon icon="x" size={16} />
+                            onClick={() => {
+                              setPaintMode('mixed');
+                              setSelectedMixedColor(mixedColor.id);
+                            }}
+                            className={`color-radio ${paintMode === 'mixed' && selectedMixedColor === mixedColor.id ? 'selected' : ''}`}
+                          >
+                            {paintMode === 'mixed' && selectedMixedColor === mixedColor.id && <div className="radio-dot"></div>}
                           </button>
+                          <button
+                            onClick={() => {
+                              setPaintMode('mixed');
+                              setSelectedMixedColor(mixedColor.id);
+                            }}
+                            className={`color-swatch ${paintMode === 'mixed' && selectedMixedColor === mixedColor.id ? 'selected' : ''}`}
+                            style={{
+                              background: mixedColor.showSlider
+                                ? `linear-gradient(to right, ${mixedColor.color1} ${mixedColor.ratio}%, ${mixedColor.color2} ${mixedColor.ratio}%)`
+                                : `linear-gradient(135deg, ${mixedColor.color1} 0%, ${mixedColor.color1} 50%, ${mixedColor.color2} 50%, ${mixedColor.color2} 100%)`
+                            }}
+                          ></button>
+                          {editingMixedColorId === mixedColor.id ? (
+                            <input
+                              type="text"
+                              value={editingMixedColorName}
+                              onChange={(e) => setEditingMixedColorName(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && saveMixedColorName()}
+                              onBlur={saveMixedColorName}
+                              className="color-name-input"
+                              autoFocus
+                            />
+                          ) : (
+                            <button onClick={() => startEditingMixedColor(mixedColor.id)} className="color-name-btn">
+                              {mixedColor.name}
+                            </button>
+                          )}
+                          <div className="mixed-color-actions">
+                            <button
+                              onClick={() => setColorPickerTarget({ type: 'mixed1', id: mixedColor.id })}
+                              className="mixed-color-box"
+                              style={{ backgroundColor: mixedColor.color1 }}
+                              title="Change First Color"
+                            ></button>
+                            <button
+                              onClick={() => setColorPickerTarget({ type: 'mixed2', id: mixedColor.id })}
+                              className="mixed-color-box"
+                              style={{ backgroundColor: mixedColor.color2 }}
+                              title="Change Second Color"
+                            ></button>
+                            <button
+                              onClick={() => toggleMixedColorSlider(mixedColor.id)}
+                              className={`icon-btn-hidden ${mixedColor.showSlider ? 'slider-active' : ''}`}
+                              title="Toggle Ratio Slider"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="4" y1="9" x2="20" y2="9"/>
+                                <line x1="4" y1="15" x2="20" y2="15"/>
+                                <line x1="10" y1="3" x2="8" y2="21"/>
+                                <line x1="16" y1="3" x2="14" y2="21"/>
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => toggleMixedTextColor(mixedColor.id)}
+                              className="icon-btn-hidden"
+                              title={`Toggle text color (currently ${mixedColor.textColor || 'white'})`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <circle
+                                  cx="8"
+                                  cy="8"
+                                  r="6"
+                                  fill={mixedColor.textColor === 'black' ? '#000000' : '#ffffff'}
+                                  stroke="#666"
+                                  strokeWidth="1"
+                                />
+                              </svg>
+                            </button>
+                            <button onClick={() => deleteMixedColor(mixedColor.id)} className="icon-btn-hidden icon-btn-delete" title="Delete">
+                              <Icon icon="x" size={16} />
+                            </button>
+                          </div>
                         </div>
+                        {mixedColor.showSlider && (
+                          <div className="mixed-color-slider-container">
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={mixedColor.ratio}
+                              onChange={(e) => updateMixedColorRatio(mixedColor.id, parseInt(e.target.value))}
+                              className="mixed-color-slider"
+                              style={{
+                                background: `linear-gradient(to right, ${mixedColor.color1} 0%, ${mixedColor.color1} ${mixedColor.ratio}%, ${mixedColor.color2} ${mixedColor.ratio}%, ${mixedColor.color2} 100%)`
+                              }}
+                            />
+                            <span className="slider-ratio-display">{mixedColor.ratio}% / {100 - mixedColor.ratio}%</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                     <button onClick={addMixedColor} className="add-btn">
@@ -1282,10 +1644,12 @@ function App() {
                   {mixedColors.map((mixedColor) => (
                     <div key={mixedColor.id} className="stat-item">
                       <div className="stat-label">
-                        <div 
-                          className="stat-color" 
-                          style={{ 
-                            background: `linear-gradient(135deg, ${mixedColor.color1} 0%, ${mixedColor.color1} 50%, ${mixedColor.color2} 50%, ${mixedColor.color2} 100%)`
+                        <div
+                          className="stat-color"
+                          style={{
+                            background: mixedColor.showSlider
+                              ? `linear-gradient(to right, ${mixedColor.color1} ${mixedColor.ratio}%, ${mixedColor.color2} ${mixedColor.ratio}%)`
+                              : `linear-gradient(135deg, ${mixedColor.color1} 0%, ${mixedColor.color1} 50%, ${mixedColor.color2} 50%, ${mixedColor.color2} 100%)`
                           }}
                         ></div>
                         <span>{mixedColor.name}</span>
