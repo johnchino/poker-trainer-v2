@@ -335,7 +335,7 @@ body {
 /* Grids List */
 .grids-list {
   padding-bottom: 0.5rem;
-  padding-left: 1.5rem;
+  /* Remove padding-left to prevent drag jump - use margin on children instead */
 }
 
 /* Grid wrappers - clean containers that receive transforms (match folder pattern) */
@@ -344,6 +344,7 @@ body {
   user-select: none;
   will-change: transform, opacity;
   backface-visibility: hidden;
+  margin-left: 1.5rem; /* Indentation moved from parent to child */
 }
 
 /* Grid styling - all grids are now wrapped */
