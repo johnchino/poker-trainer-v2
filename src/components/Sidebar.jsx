@@ -55,14 +55,20 @@ const SortableItem = ({
   onAddChild,
   exportMode,
   isSelected,
-  onToggleSelection
+  onToggleSelection,
+  activeId
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   });
 
+  // Prevent transforms on opened folders when not being dragged
+  const isOpenedFolder = item.type === 'folder' && item.expanded && item.children?.length > 0;
+  const isDraggingOther = activeId && activeId !== item.id;
+  const shouldPreventTransform = isOpenedFolder && isDraggingOther;
+
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: shouldPreventTransform ? 'none' : CSS.Transform.toString(transform),
     transition: isDragging ? 'none' : (transition || undefined),
     opacity: isDragging ? 0 : 1,
   };
@@ -137,6 +143,7 @@ const SortableItem = ({
                 exportMode={exportMode}
                 isSelected={isSelected}
                 onToggleSelection={onToggleSelection}
+                activeId={activeId}
               />
             ))}
           </div>
@@ -205,6 +212,7 @@ const SortableItem = ({
                 exportMode={exportMode}
                 isSelected={isSelected}
                 onToggleSelection={onToggleSelection}
+                activeId={activeId}
               />
             ))}
           </div>
@@ -341,17 +349,24 @@ export const Sidebar = ({
     setActiveId(event.active.id);
   };
 
-  // Custom collision detection to prevent folder interference
+  // Custom collision detection to filter out parent folders and nested items
   const customCollisionDetection = (args) => {
     if (!activeId) return closestCenter(args);
 
-    const activeItem = findItemById(activeId, items);
     const activeParent = findParentItem(activeId, items);
 
-    // If dragging a grid inside a folder, filter out the parent folder as a collision target
+    // If dragging a grid inside a folder, filter out the parent folder and nested items
     if (activeParent) {
       const filteredRects = Array.from(args.droppableRects.entries()).filter(
-        ([id]) => id !== activeParent.id
+        ([id]) => {
+          // Keep the dragged item itself
+          if (id === activeId) return true;
+          // Filter out parent folder
+          if (id === activeParent.id) return false;
+          // Filter out all nested items
+          const targetParent = findParentItem(id, items);
+          return !targetParent;
+        }
       );
 
       return closestCenter({
@@ -360,52 +375,21 @@ export const Sidebar = ({
       });
     }
 
-    // If dragging a folder or root-level grid, use special logic for opened folders
-    if (activeItem && (!activeParent)) {
-      const modifiedRects = new Map();
-
-      Array.from(args.droppableRects.entries()).forEach(([id, rect]) => {
-        // Skip the dragged item itself
-        if (id === activeId) {
-          modifiedRects.set(id, rect);
-          return;
-        }
-
-        const targetItem = findItemById(id, items);
+    // If dragging a root-level item, filter out nested items
+    const filteredRects = Array.from(args.droppableRects.entries()).filter(
+      ([id]) => {
+        // Keep the dragged item itself
+        if (id === activeId) return true;
+        // Filter out nested items (grids inside folders)
         const targetParent = findParentItem(id, items);
+        return !targetParent;
+      }
+    );
 
-        // Skip nested items (grids inside folders)
-        if (targetParent) return;
-
-        // For folders with expanded children, extend collision rect to include last child
-        if (targetItem && targetItem.type === 'folder' && targetItem.expanded && targetItem.children?.length > 0) {
-          // Find the last child's ID
-          const lastChild = targetItem.children[targetItem.children.length - 1];
-          const lastChildRect = args.droppableRects.get(lastChild.id);
-
-          if (lastChildRect) {
-            // Create extended rect from folder top to last child bottom
-            const extendedRect = {
-              ...rect,
-              bottom: lastChildRect.bottom,
-              height: lastChildRect.bottom - rect.top,
-            };
-            modifiedRects.set(id, extendedRect);
-            return;
-          }
-        }
-
-        // For other root-level items, use original rect
-        modifiedRects.set(id, rect);
-      });
-
-      return closestCenter({
-        ...args,
-        droppableRects: modifiedRects,
-      });
-    }
-
-    return closestCenter(args);
+    return closestCenter({
+      ...args,
+      droppableRects: new Map(filteredRects),
+    });
   };
 
   const handleDragEnd = (event) => {
@@ -536,6 +520,7 @@ export const Sidebar = ({
                 exportMode={exportMode}
                 isSelected={selectedForExport.has(item.id)}
                 onToggleSelection={onToggleExportSelection}
+                activeId={activeId}
               />
             ))}
           </SortableContext>
