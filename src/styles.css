@@ -337,17 +337,22 @@ body {
 .grids-list {
   padding-bottom: 0.5rem;
   padding-left: 1.5rem;
+  contain: layout style;
 }
 
 .sortable-grid {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem 0.5rem 2.5rem;
-  margin-left: -1.5rem;
   cursor: pointer;
   transition: background-color 0.2s;
   user-select: none;
+}
+
+/* Legacy styles for grids NOT in wrappers (backwards compatibility) */
+.grids-list > .sortable-grid:not(.grid-with-children) {
+  padding: 0.5rem 1rem 0.5rem 2.5rem;
+  margin-left: -1.5rem;
   position: relative;
 }
 
@@ -358,14 +363,14 @@ body {
   transition: transform 200ms ease, opacity 200ms ease;
   will-change: transform, opacity;
   backface-visibility: hidden;
+  contain: layout style paint;
 }
 
-/* Remove negative margins from grids inside wrappers (match folder-header pattern) */
+/* Clean styles for grids inside wrappers (match folder-header exactly) */
 .sortable-grid-wrapper > .sortable-grid,
 .sortable-grid.grid-with-children {
+  padding: 0.5rem 1rem;
   margin-left: 0;
-  padding-left: 1rem;
-  position: static; /* Remove relative positioning to match folder-header */
 }
 
 .sortable-grid:hover {
