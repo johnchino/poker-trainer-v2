@@ -156,37 +156,35 @@ const DraggableItem = ({
               )}
             </div>
           ) : (
-            <div className="sortable-grid-wrapper">
-              <div
-                className={`sortable-grid group ${isActive ? 'active' : ''}`}
-                {...provided.dragHandleProps}
-                onClick={() => onSelect(item.id)}
-              >
-                <div className="grid-button">
-                  <span className="chevron-spacer" aria-hidden="true"></span>
-                  <Icon icon="grid-3x3" size={14} />
-                  {isEditing ? (
-                    <InlineEditInput
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onSave={handleSave}
-                      onKeyDown={handleKeyDown}
-                      className="grid-name-input"
-                    />
-                  ) : (
-                    <span className="grid-name">{item.name}</span>
-                  )}
-                </div>
-                <ItemActions
-                  canAdd={canAdd}
-                  hasChildren={false}
-                  childrenCount={0}
-                  itemType="grid"
-                  onAdd={() => onAddChild(item.id)}
-                  onRename={startEdit}
-                  onDelete={() => onDelete(item.id)}
-                />
+            <div
+              className={`sortable-grid group ${isActive ? 'active' : ''}`}
+              {...provided.dragHandleProps}
+              onClick={() => onSelect(item.id)}
+            >
+              <div className="grid-button">
+                <span className="chevron-spacer" aria-hidden="true"></span>
+                <Icon icon="grid-3x3" size={14} />
+                {isEditing ? (
+                  <InlineEditInput
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onSave={handleSave}
+                    onKeyDown={handleKeyDown}
+                    className="grid-name-input"
+                  />
+                ) : (
+                  <span className="grid-name">{item.name}</span>
+                )}
               </div>
+              <ItemActions
+                canAdd={canAdd}
+                hasChildren={false}
+                childrenCount={0}
+                itemType="grid"
+                onAdd={() => onAddChild(item.id)}
+                onRename={startEdit}
+                onDelete={() => onDelete(item.id)}
+              />
             </div>
           )}
         </div>
