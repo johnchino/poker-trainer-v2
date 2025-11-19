@@ -59,25 +59,10 @@ const SortableItem = ({
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
-    animateLayoutChanges: (args) => {
-      const { isSorting, wasSorting } = args;
-
-      // If this is a folder, don't animate when sorting is happening inside it
-      if (item.type === 'folder') {
-        // Only animate if we're actively dragging THIS folder (not its children)
-        return isDragging;
-      }
-
-      // For grids, always animate
-      return true;
-    },
   });
 
-  // Don't apply transforms to folders when their children are being dragged
-  const shouldTransform = item.type === 'folder' ? isDragging : true;
-
   const style = {
-    transform: shouldTransform ? CSS.Transform.toString(transform) : undefined,
+    transform: CSS.Transform.toString(transform),
     transition: isDragging ? 'none' : (transition || undefined),
     opacity: isDragging ? 0 : 1,
   };
