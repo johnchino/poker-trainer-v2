@@ -360,22 +360,48 @@ export const Sidebar = ({
       });
     }
 
-    // If dragging a folder or root-level grid, filter out ALL nested items (only allow collision with siblings)
+    // If dragging a folder or root-level grid, use special logic for opened folders
     if (activeItem && (!activeParent)) {
-      const filteredRects = Array.from(args.droppableRects.entries()).filter(
-        ([id]) => {
-          // Allow collision with the dragged item itself
-          if (id === activeId) return true;
+      const modifiedRects = new Map();
 
-          // Only allow collision with root-level items (items without parents)
-          const targetParent = findParentItem(id, items);
-          return !targetParent;
+      Array.from(args.droppableRects.entries()).forEach(([id, rect]) => {
+        // Skip the dragged item itself
+        if (id === activeId) {
+          modifiedRects.set(id, rect);
+          return;
         }
-      );
+
+        const targetItem = findItemById(id, items);
+        const targetParent = findParentItem(id, items);
+
+        // Skip nested items (grids inside folders)
+        if (targetParent) return;
+
+        // For folders with expanded children, extend collision rect to include last child
+        if (targetItem && targetItem.type === 'folder' && targetItem.expanded && targetItem.children?.length > 0) {
+          // Find the last child's ID
+          const lastChild = targetItem.children[targetItem.children.length - 1];
+          const lastChildRect = args.droppableRects.get(lastChild.id);
+
+          if (lastChildRect) {
+            // Create extended rect from folder top to last child bottom
+            const extendedRect = {
+              ...rect,
+              bottom: lastChildRect.bottom,
+              height: lastChildRect.bottom - rect.top,
+            };
+            modifiedRects.set(id, extendedRect);
+            return;
+          }
+        }
+
+        // For other root-level items, use original rect
+        modifiedRects.set(id, rect);
+      });
 
       return closestCenter({
         ...args,
-        droppableRects: new Map(filteredRects),
+        droppableRects: modifiedRects,
       });
     }
 
