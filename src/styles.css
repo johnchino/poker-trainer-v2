@@ -240,6 +240,8 @@ body {
 .sortable-folder {
   user-select: none;
   transition: transform 200ms ease, opacity 200ms ease;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 .folder-header {
@@ -354,6 +356,8 @@ body {
 .grid-with-children-container {
   user-select: none;
   transition: transform 200ms ease, opacity 200ms ease;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 /* Remove negative margins from grids inside wrappers (match folder-header pattern) */
