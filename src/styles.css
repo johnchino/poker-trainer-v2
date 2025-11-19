@@ -344,14 +344,16 @@ body {
   padding: 0.5rem 1rem 0.5rem 2.5rem;
   margin-left: -1.5rem;
   cursor: pointer;
-  transition: background-color 0.2s, transform 200ms ease, opacity 200ms ease;
+  transition: background-color 0.2s;
   user-select: none;
   position: relative;
 }
 
-/* Container for grids with children - gets the transform */
+/* Grid wrappers - clean containers that receive transforms (match folder pattern) */
+.sortable-grid-wrapper,
 .grid-with-children-container {
-  position: relative;
+  user-select: none;
+  transition: transform 200ms ease, opacity 200ms ease;
 }
 
 /* Prevent margin shift during drag for grids with children */
