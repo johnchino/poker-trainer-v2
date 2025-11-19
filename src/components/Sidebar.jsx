@@ -137,7 +137,7 @@ const DraggableItem = ({
                         }}
                       >
                         <div className={`sortable-grid group`}>
-                          <div className="grid-button" style={{ marginLeft: 0 }}>
+                          <div className="grid-button" style={{ marginLeft: '1.5rem' }}>
                             <span className="chevron-spacer" aria-hidden="true"></span>
                             <Icon icon="grid-3x3" size={14} />
                             <span className="grid-name">{cloneItem.name}</span>
