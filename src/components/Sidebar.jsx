@@ -128,6 +128,7 @@ const DraggableItem = ({
                       className="grids-list"
                       style={{
                         backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
+                        paddingLeft: '1.5rem',
                       }}
                     >
                       {item.children.map((child, childIndex) => (
@@ -160,9 +161,6 @@ const DraggableItem = ({
                 className={`sortable-grid group ${isActive ? 'active' : ''}`}
                 {...provided.dragHandleProps}
                 onClick={() => onSelect(item.id)}
-                style={{
-                  paddingLeft: isNested ? 'calc(1rem + 1.5rem)' : '1rem',
-                }}
               >
                 <div className="grid-button">
                   <span className="chevron-spacer" aria-hidden="true"></span>
