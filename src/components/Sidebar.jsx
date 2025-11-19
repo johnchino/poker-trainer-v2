@@ -63,8 +63,8 @@ const SortableItem = ({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || 'transform 200ms ease',
-    opacity: isDragging ? 0.4 : 1,
+    transition: isDragging ? 'none' : (transition || 'transform 200ms ease'),
+    opacity: isDragging ? 0 : 1,
   };
 
   const { isEditing, editValue, setEditValue, startEdit, handleSave } = useInlineEdit(
