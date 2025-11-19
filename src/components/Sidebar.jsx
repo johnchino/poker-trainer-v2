@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, MeasuringStrategy } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Icon } from './Icons';
 import { ItemActions } from './ItemActions';
 import { SidebarToolbar } from './SidebarToolbar';
 import { useInlineEdit } from '../hooks/useInlineEdit';
-import { canAddChild, findItemById, findParentItem } from '../utils/itemHelpers';
+import { canAddChild, findItemById } from '../utils/itemHelpers';
 
 // Reusable inline edit input component
 const InlineEditInput = ({ value, onChange, onSave, onKeyDown, className }) => (
@@ -43,9 +41,10 @@ const ExportCheckbox = ({ exportMode, isSelected, onToggle }) => {
   );
 };
 
-// Unified Sortable Item Component
-const SortableItem = ({
+// Draggable Item Component
+const DraggableItem = ({
   item,
+  index,
   items,
   currentGrid,
   onSelect,
@@ -55,24 +54,8 @@ const SortableItem = ({
   onAddChild,
   exportMode,
   isSelected,
-  onToggleSelection,
-  activeId
+  onToggleSelection
 }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id,
-  });
-
-  // Prevent transforms on opened folders when not being dragged
-  const isOpenedFolder = item.type === 'folder' && item.expanded && item.children?.length > 0;
-  const isDraggingOther = activeId && activeId !== item.id;
-  const shouldPreventTransform = isOpenedFolder && isDraggingOther;
-
-  const style = {
-    transform: shouldPreventTransform ? 'none' : CSS.Transform.toString(transform),
-    transition: isDragging ? 'none' : (transition || undefined),
-    opacity: isDragging ? 0 : 1,
-  };
-
   const { isEditing, editValue, setEditValue, startEdit, handleSave } = useInlineEdit(
     item.name,
     (newName) => onRename(item.id, newName)
@@ -91,215 +74,121 @@ const SortableItem = ({
     }
   };
 
-  // Render folder
-  if (isFolder) {
-    return (
-      <div ref={setNodeRef} style={style} className="sortable-folder">
-        <div
-          className="folder-header group"
-          {...attributes}
-          {...listeners}
-          onClick={() => !isEditing && onToggle(item.id)}
-        >
-          <ExportCheckbox exportMode={exportMode} isSelected={isSelected} onToggle={() => onToggleSelection(item.id)} />
-          <button onKeyDown={handleKeyDown} className="folder-toggle">
-            <Icon icon={item.expanded ? "chevron-down" : "chevron-right"} size={12} className="chevron-icon" />
-            <Icon icon={item.expanded ? "folder-open" : "folder"} size={16} />
-            {isEditing ? (
-              <InlineEditInput
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onSave={handleSave}
-                onKeyDown={handleKeyDown}
-                className="folder-name-input"
-              />
-            ) : (
-              <span className="folder-name">{item.name}</span>
-            )}
-          </button>
-          <ItemActions
-            canAdd={canAdd}
-            hasChildren={hasChildren}
-            childrenCount={item.children?.length || 0}
-            itemType="folder"
-            onAdd={() => onAddChild(item.id)}
-            onRename={startEdit}
-            onDelete={() => onDelete(item.id)}
-          />
-        </div>
-        {item.expanded && hasChildren && (
-          <div className="grids-list">
-            {item.children.map(child => (
-              <SortableItem
-                key={child.id}
-                item={child}
-                items={items}
-                currentGrid={currentGrid}
-                onSelect={onSelect}
-                onToggle={onToggle}
-                onRename={onRename}
-                onDelete={onDelete}
-                onAddChild={onAddChild}
-                exportMode={exportMode}
-                isSelected={isSelected}
-                onToggleSelection={onToggleSelection}
-                activeId={activeId}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Render grid with children (match folder structure for smooth dragging)
-  if (isGrid && hasChildren) {
-    return (
-      <div ref={setNodeRef} style={style} className="grid-with-children-container">
-        <div
-          className={`sortable-grid group grid-with-children ${isActive ? 'active' : ''}`}
-          {...attributes}
-          {...listeners}
-          onClick={() => onSelect(item.id)}
-        >
-          <div className="grid-button">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggle(item.id);
-              }}
-              className="chevron-toggle-btn"
-              title={item.expanded ? "Collapse" : "Expand"}
-            >
-              <Icon icon={item.expanded ? "chevron-down" : "chevron-right"} size={10} className="chevron-icon" />
-            </button>
-            <Icon icon="grid-3x3" size={14} />
-            {isEditing ? (
-              <InlineEditInput
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onSave={handleSave}
-                onKeyDown={handleKeyDown}
-                className="grid-name-input"
-              />
-            ) : (
-              <span className="grid-name">{item.name}</span>
-            )}
-          </div>
-          <ItemActions
-            canAdd={canAdd}
-            hasChildren={hasChildren}
-            childrenCount={item.children?.length || 0}
-            itemType="grid"
-            onAdd={() => onAddChild(item.id)}
-            onRename={startEdit}
-            onDelete={() => onDelete(item.id)}
-          />
-        </div>
-        {item.expanded && (
-          <div className="grids-list">
-            {item.children.map(child => (
-              <SortableItem
-                key={child.id}
-                item={child}
-                items={items}
-                currentGrid={currentGrid}
-                onSelect={onSelect}
-                onToggle={onToggle}
-                onRename={onRename}
-                onDelete={onDelete}
-                onAddChild={onAddChild}
-                exportMode={exportMode}
-                isSelected={isSelected}
-                onToggleSelection={onToggleSelection}
-                activeId={activeId}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Render leaf grid (no children) - match folder structure for smooth dragging
   return (
-    <div ref={setNodeRef} style={style} className="sortable-grid-wrapper">
-      <div
-        className={`sortable-grid group ${isActive ? 'active' : ''}`}
-        {...attributes}
-        {...listeners}
-        onClick={() => onSelect(item.id)}
-      >
-        <div className="grid-button">
-          <span className="chevron-spacer" aria-hidden="true"></span>
-          <Icon icon="grid-3x3" size={14} />
-          {isEditing ? (
-            <InlineEditInput
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onSave={handleSave}
-              onKeyDown={handleKeyDown}
-              className="grid-name-input"
-            />
-          ) : (
-            <span className="grid-name">{item.name}</span>
-          )}
-        </div>
-        <ItemActions
-          canAdd={canAdd}
-          hasChildren={false}
-          childrenCount={0}
-          itemType="grid"
-          onAdd={() => onAddChild(item.id)}
-          onRename={startEdit}
-          onDelete={() => onDelete(item.id)}
-        />
-      </div>
-    </div>
-  );
-};
-
-// Drag overlay component
-const DragOverlayContent = ({ item, isNested }) => {
-  if (!item) return null;
-
-  const isFolder = item.type === 'folder';
-
-  // Add indentation for nested grids
-  const overlayStyle = {
-    cursor: 'grabbing',
-    opacity: 0.95,
-    paddingLeft: isNested && !isFolder ? '1.5rem' : '0',
-  };
-
-  const itemStyle = {
-    background: 'linear-gradient(135deg, #374151 0%, #2d3748 100%)',
-    borderRadius: '6px',
-    padding: '0.5rem 1rem',
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    minWidth: '200px',
-  };
-
-  return (
-    <div style={overlayStyle}>
-      <div style={itemStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+    <Draggable draggableId={item.id} index={index}>
+      {(provided, snapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          style={{
+            ...provided.draggableProps.style,
+            opacity: snapshot.isDragging ? 0.5 : 1,
+          }}
+        >
           {isFolder ? (
-            <>
-              <Icon icon={item.expanded ? 'chevron-down' : 'chevron-right'} size={12} />
-              <Icon icon="folder" size={16} />
-              <span style={{ color: 'white', fontSize: '0.875rem' }}>{item.name}</span>
-            </>
+            <div className="sortable-folder">
+              <div
+                className="folder-header group"
+                {...provided.dragHandleProps}
+                onClick={() => !isEditing && onToggle(item.id)}
+              >
+                <ExportCheckbox exportMode={exportMode} isSelected={isSelected} onToggle={() => onToggleSelection(item.id)} />
+                <button onKeyDown={handleKeyDown} className="folder-toggle">
+                  <Icon icon={item.expanded ? "chevron-down" : "chevron-right"} size={12} className="chevron-icon" />
+                  <Icon icon={item.expanded ? "folder-open" : "folder"} size={16} />
+                  {isEditing ? (
+                    <InlineEditInput
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onSave={handleSave}
+                      onKeyDown={handleKeyDown}
+                      className="folder-name-input"
+                    />
+                  ) : (
+                    <span className="folder-name">{item.name}</span>
+                  )}
+                </button>
+                <ItemActions
+                  canAdd={canAdd}
+                  hasChildren={hasChildren}
+                  childrenCount={item.children?.length || 0}
+                  itemType="folder"
+                  onAdd={() => onAddChild(item.id)}
+                  onRename={startEdit}
+                  onDelete={() => onDelete(item.id)}
+                />
+              </div>
+              {item.expanded && hasChildren && (
+                <Droppable droppableId={`folder-${item.id}`} type="GRID">
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="grids-list"
+                      style={{
+                        backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
+                      }}
+                    >
+                      {item.children.map((child, childIndex) => (
+                        <DraggableItem
+                          key={child.id}
+                          item={child}
+                          index={childIndex}
+                          items={items}
+                          currentGrid={currentGrid}
+                          onSelect={onSelect}
+                          onToggle={onToggle}
+                          onRename={onRename}
+                          onDelete={onDelete}
+                          onAddChild={onAddChild}
+                          exportMode={exportMode}
+                          isSelected={isSelected}
+                          onToggleSelection={onToggleSelection}
+                        />
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              )}
+            </div>
           ) : (
-            <>
-              <Icon icon="grid-3x3" size={14} />
-              <span style={{ color: 'white', fontSize: '0.875rem' }}>{item.name}</span>
-            </>
+            <div className="sortable-grid-wrapper">
+              <div
+                className={`sortable-grid group ${isActive ? 'active' : ''}`}
+                {...provided.dragHandleProps}
+                onClick={() => onSelect(item.id)}
+              >
+                <div className="grid-button">
+                  <span className="chevron-spacer" aria-hidden="true"></span>
+                  <Icon icon="grid-3x3" size={14} />
+                  {isEditing ? (
+                    <InlineEditInput
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onSave={handleSave}
+                      onKeyDown={handleKeyDown}
+                      className="grid-name-input"
+                    />
+                  ) : (
+                    <span className="grid-name">{item.name}</span>
+                  )}
+                </div>
+                <ItemActions
+                  canAdd={canAdd}
+                  hasChildren={false}
+                  childrenCount={0}
+                  itemType="grid"
+                  onAdd={() => onAddChild(item.id)}
+                  onRename={startEdit}
+                  onDelete={() => onDelete(item.id)}
+                />
+              </div>
+            </div>
           )}
         </div>
-      </div>
-    </div>
+      )}
+    </Draggable>
   );
 };
 
@@ -322,122 +211,46 @@ export const Sidebar = ({
   onExportData,
   onImportData
 }) => {
-  const [activeId, setActiveId] = useState(null);
+  const handleDragEnd = (result) => {
+    const { source, destination, draggableId } = result;
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-      onActivation: (event) => {
-        const target = event.event.target;
-        if (target.closest && target.closest('[data-no-dnd="true"]')) {
-          return false;
-        }
-      },
-    })
-  );
+    // Dropped outside a valid droppable
+    if (!destination) return;
 
-  // Custom measuring configuration to prevent snap-back during drag
-  const measuring = {
-    droppable: {
-      strategy: MeasuringStrategy.Always,
-    },
-  };
-
-  const handleDragStart = (event) => {
-    setActiveId(event.active.id);
-  };
-
-  // Custom collision detection to filter out parent folders and nested items
-  const customCollisionDetection = (args) => {
-    if (!activeId) return closestCenter(args);
-
-    const activeParent = findParentItem(activeId, items);
-
-    // If dragging a grid inside a folder, filter out the parent folder and nested items
-    if (activeParent) {
-      const filteredRects = Array.from(args.droppableRects.entries()).filter(
-        ([id]) => {
-          // Keep the dragged item itself
-          if (id === activeId) return true;
-          // Filter out parent folder
-          if (id === activeParent.id) return false;
-          // Filter out all nested items
-          const targetParent = findParentItem(id, items);
-          return !targetParent;
-        }
-      );
-
-      return closestCenter({
-        ...args,
-        droppableRects: new Map(filteredRects),
-      });
-    }
-
-    // If dragging a root-level item, filter out nested items
-    const filteredRects = Array.from(args.droppableRects.entries()).filter(
-      ([id]) => {
-        // Keep the dragged item itself
-        if (id === activeId) return true;
-        // Filter out nested items (grids inside folders)
-        const targetParent = findParentItem(id, items);
-        return !targetParent;
-      }
-    );
-
-    return closestCenter({
-      ...args,
-      droppableRects: new Map(filteredRects),
-    });
-  };
-
-  const handleDragEnd = (event) => {
-    setActiveId(null);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeItem = findItemById(active.id, items);
-    const overItem = findItemById(over.id, items);
-
-    if (!activeItem || !overItem) return;
-
-    const activeParent = findParentItem(active.id, items);
-    const overParent = findParentItem(over.id, items);
-
-    // Case 1: Both items are at root level
-    if (!activeParent && !overParent) {
-      const oldIndex = items.findIndex(item => item.id === active.id);
-      const newIndex = items.findIndex(item => item.id === over.id);
-
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      const newItems = arrayMove(items, oldIndex, newIndex).map((item, index) => ({
-        ...item,
-        order: index
-      }));
-
-      onItemsChange(newItems);
+    // Dropped in same position
+    if (source.droppableId === destination.droppableId && source.index === destination.index) {
       return;
     }
 
-    // Case 2: Both items have the same parent (reordering within folder)
-    if (activeParent && overParent && activeParent.id === overParent.id) {
-      const oldIndex = activeParent.children.findIndex(child => child.id === active.id);
-      const newIndex = activeParent.children.findIndex(child => child.id === over.id);
+    // Helper to reorder array
+    const reorder = (list, startIndex, endIndex) => {
+      const result = Array.from(list);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    };
 
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      // Reorder children
-      const reorderedChildren = arrayMove(activeParent.children, oldIndex, newIndex).map((child, index) => ({
-        ...child,
+    // Case 1: Reordering at root level (folders and root grids)
+    if (source.droppableId === 'root' && destination.droppableId === 'root') {
+      const reordered = reorder(items, source.index, destination.index).map((item, index) => ({
+        ...item,
         order: index
       }));
+      onItemsChange(reordered);
+      return;
+    }
 
-      // Update the parent with reordered children
+    // Case 2: Reordering within a folder
+    if (source.droppableId === destination.droppableId && source.droppableId.startsWith('folder-')) {
+      const folderId = source.droppableId.replace('folder-', '');
+
       const updateTree = (items) => {
         return items.map(item => {
-          if (item.id === activeParent.id) {
+          if (item.id === folderId) {
+            const reorderedChildren = reorder(item.children, source.index, destination.index).map((child, index) => ({
+              ...child,
+              order: index
+            }));
             return { ...item, children: reorderedChildren };
           }
           if (item.children && item.children.length > 0) {
@@ -452,32 +265,8 @@ export const Sidebar = ({
       return;
     }
 
-    // Case 3: Moving between different parents or levels
-    // For now, we'll just prevent cross-parent moves to keep it simple
-    // You could implement move logic here if needed
-  };
-
-  // Determine if active item is nested (has a parent)
-  const getActiveItemInfo = () => {
-    if (!activeId) return { item: null, isNested: false };
-    const item = findItemById(activeId, items);
-    const parent = findParentItem(activeId, items);
-    return { item, isNested: !!parent };
-  };
-
-  // Flatten all items for single SortableContext (prevents nested context conflicts)
-  const flattenAllItemIds = (items) => {
-    const ids = [];
-    const flatten = (itemList) => {
-      itemList.forEach(item => {
-        ids.push(item.id);
-        if (item.children && item.children.length > 0) {
-          flatten(item.children);
-        }
-      });
-    };
-    flatten(items);
-    return ids;
+    // Case 3: Moving between different droppables (future enhancement)
+    // For now, we'll ignore cross-folder moves to keep it simple
   };
 
   return (
@@ -498,39 +287,39 @@ export const Sidebar = ({
       />
 
       <div className="sidebar-content">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={customCollisionDetection}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          measuring={measuring}
-        >
-          <SortableContext items={flattenAllItemIds(items)} strategy={verticalListSortingStrategy}>
-            {items.map(item => (
-              <SortableItem
-                key={item.id}
-                item={item}
-                items={items}
-                currentGrid={currentGrid}
-                onSelect={onCurrentGridChange}
-                onToggle={onToggleItem}
-                onRename={onRenameItem}
-                onDelete={onDeleteItem}
-                onAddChild={onAddItem}
-                exportMode={exportMode}
-                isSelected={selectedForExport.has(item.id)}
-                onToggleSelection={onToggleExportSelection}
-                activeId={activeId}
-              />
-            ))}
-          </SortableContext>
-          <DragOverlay>
-            {(() => {
-              const { item, isNested } = getActiveItemInfo();
-              return item ? <DragOverlayContent item={item} isNested={isNested} /> : null;
-            })()}
-          </DragOverlay>
-        </DndContext>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="root" type="ROOT">
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                style={{
+                  backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
+                  minHeight: '100px',
+                }}
+              >
+                {items.map((item, index) => (
+                  <DraggableItem
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    items={items}
+                    currentGrid={currentGrid}
+                    onSelect={onCurrentGridChange}
+                    onToggle={onToggleItem}
+                    onRename={onRenameItem}
+                    onDelete={onDeleteItem}
+                    onAddChild={onAddItem}
+                    exportMode={exportMode}
+                    isSelected={selectedForExport.has(item.id)}
+                    onToggleSelection={onToggleExportSelection}
+                  />
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       </div>
     </div>
   );
