@@ -335,7 +335,7 @@ body {
 /* Grids List */
 .grids-list {
   padding-bottom: 0.5rem;
-  /* Remove padding-left to prevent drag jump - use margin on children instead */
+  padding-left: 1.5rem;
 }
 
 /* Grid wrappers - clean containers that receive transforms (match folder pattern) */
