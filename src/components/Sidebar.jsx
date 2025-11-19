@@ -124,24 +124,22 @@ const SortableItem = ({
         </div>
         {item.expanded && hasChildren && (
           <div className="grids-list">
-            <SortableContext items={item.children.map(child => child.id)} strategy={verticalListSortingStrategy}>
-              {item.children.map(child => (
-                <SortableItem
-                  key={child.id}
-                  item={child}
-                  items={items}
-                  currentGrid={currentGrid}
-                  onSelect={onSelect}
-                  onToggle={onToggle}
-                  onRename={onRename}
-                  onDelete={onDelete}
-                  onAddChild={onAddChild}
-                  exportMode={exportMode}
-                  isSelected={isSelected}
-                  onToggleSelection={onToggleSelection}
-                />
-              ))}
-            </SortableContext>
+            {item.children.map(child => (
+              <SortableItem
+                key={child.id}
+                item={child}
+                items={items}
+                currentGrid={currentGrid}
+                onSelect={onSelect}
+                onToggle={onToggle}
+                onRename={onRename}
+                onDelete={onDelete}
+                onAddChild={onAddChild}
+                exportMode={exportMode}
+                isSelected={isSelected}
+                onToggleSelection={onToggleSelection}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -194,24 +192,22 @@ const SortableItem = ({
         </div>
         {item.expanded && (
           <div className="grids-list">
-            <SortableContext items={item.children.map(child => child.id)} strategy={verticalListSortingStrategy}>
-              {item.children.map(child => (
-                <SortableItem
-                  key={child.id}
-                  item={child}
-                  items={items}
-                  currentGrid={currentGrid}
-                  onSelect={onSelect}
-                  onToggle={onToggle}
-                  onRename={onRename}
-                  onDelete={onDelete}
-                  onAddChild={onAddChild}
-                  exportMode={exportMode}
-                  isSelected={isSelected}
-                  onToggleSelection={onToggleSelection}
-                />
-              ))}
-            </SortableContext>
+            {item.children.map(child => (
+              <SortableItem
+                key={child.id}
+                item={child}
+                items={items}
+                currentGrid={currentGrid}
+                onSelect={onSelect}
+                onToggle={onToggle}
+                onRename={onRename}
+                onDelete={onDelete}
+                onAddChild={onAddChild}
+                exportMode={exportMode}
+                isSelected={isSelected}
+                onToggleSelection={onToggleSelection}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -419,6 +415,21 @@ export const Sidebar = ({
     return { item, isNested: !!parent };
   };
 
+  // Flatten all items for single SortableContext (prevents nested context conflicts)
+  const flattenAllItemIds = (items) => {
+    const ids = [];
+    const flatten = (itemList) => {
+      itemList.forEach(item => {
+        ids.push(item.id);
+        if (item.children && item.children.length > 0) {
+          flatten(item.children);
+        }
+      });
+    };
+    flatten(items);
+    return ids;
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -444,7 +455,7 @@ export const Sidebar = ({
           onDragEnd={handleDragEnd}
           measuring={measuring}
         >
-          <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={flattenAllItemIds(items)} strategy={verticalListSortingStrategy}>
             {items.map(item => (
               <SortableItem
                 key={item.id}
