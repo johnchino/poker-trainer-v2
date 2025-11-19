@@ -350,7 +350,9 @@ export const Sidebar = ({
 
     // If dragging a grid inside a folder, filter out the parent folder as a collision target
     if (activeParent) {
-      const filteredRects = args.droppableRects.filter(([id]) => {
+      // Convert Map to array, filter, then back to Map
+      const rectEntries = Array.from(args.droppableRects.entries());
+      const filteredRects = rectEntries.filter(([id]) => {
         return id !== activeParent.id;
       });
 
