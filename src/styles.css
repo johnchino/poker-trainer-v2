@@ -335,7 +335,7 @@ body {
 /* Grids List */
 .grids-list {
   padding-bottom: 0.5rem;
-  padding-left: 1.5rem;
+  /* No padding-left on container to prevent drag jump */
 }
 
 /* Grid wrappers - clean containers that receive transforms (match folder pattern) */
@@ -344,7 +344,11 @@ body {
   user-select: none;
   will-change: transform, opacity;
   backface-visibility: hidden;
-  /* margin-left removed - now applied dynamically via isNested prop in component */
+}
+
+/* Nested grids indentation - applied INSIDE the draggable, not on the draggable itself */
+.grids-list > div > .sortable-grid-wrapper {
+  margin-left: 1.5rem;
 }
 
 /* Grid styling - all grids are now wrapped */
