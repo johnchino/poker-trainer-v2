@@ -357,11 +357,6 @@ body {
   user-select: none;
 }
 
-/* Nested grids indentation - increase padding-left for grids inside folders */
-.grids-list .sortable-grid {
-  padding-left: 2.5rem; /* 1rem base + 1.5rem indent */
-}
-
 .sortable-grid:hover {
   background-color: rgba(55, 65, 81, 0.5);
 }
@@ -382,6 +377,11 @@ body {
   cursor: pointer;
   text-align: left;
   min-width: 0;
+}
+
+/* Nested grids indentation - add margin to grid-button inside .grids-list */
+.grids-list .grid-button {
+  margin-left: 1.5rem;
 }
 
 .chevron-toggle-btn {
