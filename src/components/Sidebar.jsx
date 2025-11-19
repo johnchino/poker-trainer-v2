@@ -155,16 +155,14 @@ const DraggableItem = ({
               )}
             </div>
           ) : (
-            <div
-              className="sortable-grid-wrapper"
-              style={{
-                marginLeft: isNested ? '1.5rem' : '0',
-              }}
-            >
+            <div className="sortable-grid-wrapper">
               <div
                 className={`sortable-grid group ${isActive ? 'active' : ''}`}
                 {...provided.dragHandleProps}
                 onClick={() => onSelect(item.id)}
+                style={{
+                  paddingLeft: isNested ? 'calc(1rem + 1.5rem)' : '1rem',
+                }}
               >
                 <div className="grid-button">
                   <span className="chevron-spacer" aria-hidden="true"></span>
