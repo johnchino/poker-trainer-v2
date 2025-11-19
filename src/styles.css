@@ -346,11 +346,6 @@ body {
   backface-visibility: hidden;
 }
 
-/* Nested grids indentation - applied INSIDE the draggable, not on the draggable itself */
-.grids-list > div > .sortable-grid-wrapper {
-  margin-left: 1.5rem;
-}
-
 /* Grid styling - all grids are now wrapped */
 .sortable-grid {
   display: flex;
@@ -360,6 +355,11 @@ body {
   cursor: pointer;
   transition: background-color 0.2s;
   user-select: none;
+}
+
+/* Nested grids indentation - increase padding-left for grids inside folders */
+.grids-list .sortable-grid {
+  padding-left: 2.5rem; /* 1rem base + 1.5rem indent */
 }
 
 .sortable-grid:hover {
