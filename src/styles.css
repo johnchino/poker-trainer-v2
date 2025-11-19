@@ -248,7 +248,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  cursor: pointer;
+  cursor: default;
   transition: background-color 0.2s;
 }
 
@@ -265,7 +265,7 @@ body {
   background: none;
   border: none;
   color: white;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   min-width: 0;
 }
@@ -315,7 +315,7 @@ body {
   border: none;
   border-radius: 0.375rem;
   color: #9ca3af;
-  cursor: pointer;
+  cursor: default;
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -352,7 +352,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  cursor: pointer;
+  cursor: default;
   transition: background-color 0.2s;
   user-select: none;
 }
@@ -374,7 +374,7 @@ body {
   background: none;
   border: none;
   color: white;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   min-width: 0;
 }
@@ -388,7 +388,7 @@ body {
   background: none;
   border: none;
   color: white;
-  cursor: pointer;
+  cursor: default;
   padding: 0;
   display: flex;
   align-items: center;
