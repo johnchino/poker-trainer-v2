@@ -77,15 +77,25 @@ const DraggableItem = ({
 
   return (
     <Draggable draggableId={item.id} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          style={{
-            ...provided.draggableProps.style,
-            opacity: snapshot.isDragging ? 0.5 : 1,
-          }}
-        >
+      {(provided, snapshot) => {
+        // Calculate transform for nested items
+        const baseTransform = provided.draggableProps.style?.transform;
+        const nestedTransform = isNested && !isFolder ? 'translateX(1.5rem)' : '';
+
+        return (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            style={{
+              ...provided.draggableProps.style,
+              opacity: snapshot.isDragging ? 0.5 : 1,
+              transform: snapshot.isDragging
+                ? baseTransform  // When dragging, use only dnd transform
+                : nestedTransform  // When at rest, add nested indent
+                  ? `${nestedTransform}`
+                  : baseTransform,
+            }}
+          >
           {isFolder ? (
             <div className="sortable-folder">
               <div
@@ -128,7 +138,6 @@ const DraggableItem = ({
                       className="grids-list"
                       style={{
                         backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
-                        paddingLeft: '1.5rem',
                       }}
                     >
                       {item.children.map((child, childIndex) => (
@@ -190,7 +199,8 @@ const DraggableItem = ({
             </div>
           )}
         </div>
-      )}
+      );
+      }}
     </Draggable>
   );
 };
