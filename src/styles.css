@@ -346,6 +346,18 @@ body {
   cursor: pointer;
   transition: background-color 0.2s, transform 200ms ease, opacity 200ms ease;
   user-select: none;
+  position: relative;
+}
+
+/* Container for grids with children - gets the transform */
+.grid-with-children-container {
+  position: relative;
+}
+
+/* Prevent margin shift during drag for grids with children */
+.sortable-grid.grid-with-children {
+  margin-left: 0;
+  padding-left: 1rem;
 }
 
 .sortable-grid:hover {

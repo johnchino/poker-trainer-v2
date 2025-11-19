@@ -147,10 +147,10 @@ const SortableItem = ({
     );
   }
 
-  // Render grid with children
+  // Render grid with children (match folder structure for smooth dragging)
   if (isGrid && hasChildren) {
     return (
-      <div ref={setNodeRef} style={style}>
+      <div ref={setNodeRef} style={style} className="grid-with-children-container">
         <div
           className={`sortable-grid group grid-with-children ${isActive ? 'active' : ''}`}
           {...attributes}
