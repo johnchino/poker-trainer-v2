@@ -121,7 +121,32 @@ const DraggableItem = ({
                 />
               </div>
               {item.expanded && hasChildren && (
-                <Droppable droppableId={`folder-${item.id}`} type="GRID">
+                <Droppable
+                  droppableId={`folder-${item.id}`}
+                  type="GRID"
+                  renderClone={(provided, snapshot, rubric) => {
+                    const cloneItem = item.children[rubric.source.index];
+                    return (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        style={{
+                          ...provided.draggableProps.style,
+                          opacity: 0.8,
+                        }}
+                      >
+                        <div className={`sortable-grid group`}>
+                          <div className="grid-button" style={{ marginLeft: 0 }}>
+                            <span className="chevron-spacer" aria-hidden="true"></span>
+                            <Icon icon="grid-3x3" size={14} />
+                            <span className="grid-name">{cloneItem.name}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }}
+                >
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
