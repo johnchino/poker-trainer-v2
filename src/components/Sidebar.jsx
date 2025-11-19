@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, MeasuringStrategy } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Icon } from './Icons';
 import { ItemActions } from './ItemActions';
@@ -343,18 +343,15 @@ export const Sidebar = ({
 
   // Custom collision detection to prevent folder interference
   const customCollisionDetection = (args) => {
-    const activeItem = findItemById(activeId, items);
-    if (!activeItem) return closestCenter(args);
+    if (!activeId) return closestCenter(args);
 
     const activeParent = findParentItem(activeId, items);
 
     // If dragging a grid inside a folder, filter out the parent folder as a collision target
     if (activeParent) {
-      // Convert Map to array, filter, then back to Map
-      const rectEntries = Array.from(args.droppableRects.entries());
-      const filteredRects = rectEntries.filter(([id]) => {
-        return id !== activeParent.id;
-      });
+      const filteredRects = Array.from(args.droppableRects.entries()).filter(
+        ([id]) => id !== activeParent.id
+      );
 
       return closestCenter({
         ...args,

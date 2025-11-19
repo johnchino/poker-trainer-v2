@@ -338,22 +338,6 @@ body {
   padding-left: 1.5rem;
 }
 
-.sortable-grid {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  user-select: none;
-}
-
-/* Legacy styles for grids NOT in wrappers (backwards compatibility) */
-.grids-list > .sortable-grid:not(.grid-with-children) {
-  padding: 0.5rem 1rem 0.5rem 2.5rem;
-  margin-left: -1.5rem;
-  position: relative;
-}
-
 /* Grid wrappers - clean containers that receive transforms (match folder pattern) */
 .sortable-grid-wrapper,
 .grid-with-children-container {
@@ -362,27 +346,19 @@ body {
   backface-visibility: hidden;
 }
 
-/* Clean styles for grids inside wrappers (match folder-header exactly) */
-.sortable-grid-wrapper > .sortable-grid,
-.sortable-grid.grid-with-children {
+/* Grid styling - all grids are now wrapped */
+.sortable-grid {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
-  margin-left: 0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  user-select: none;
 }
 
 .sortable-grid:hover {
   background-color: rgba(55, 65, 81, 0.5);
-}
-
-/* Root Grids Section */
-.root-grids-section {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.root-grids-section .sortable-grid {
-  margin-left: 0;
-  padding-left: 1rem;
 }
 
 .sortable-grid.active {
