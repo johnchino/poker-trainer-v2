@@ -57,7 +57,8 @@ const DraggableItem = ({
   exportMode,
   isSelected,
   onToggleSelection,
-  isNested = false
+  isNested = false,
+  depth = 0
 }) => {
   const { isEditing, editValue, setEditValue, startEdit, handleSave } = useInlineEdit(
     item.name,
@@ -69,6 +70,9 @@ const DraggableItem = ({
   const isGrid = item.type === 'grid';
   const isActive = isGrid && currentGrid === item.id;
   const canAdd = canAddChild(item.id, items);
+
+  // Calculate indentation based on depth (1.5rem per level)
+  const indentation = depth > 0 ? `${depth * 1.5}rem` : '0';
 
   const handleKeyDown = (e) => {
     e.stopPropagation();
@@ -177,6 +181,7 @@ const DraggableItem = ({
                           isSelected={isSelected}
                           onToggleSelection={onToggleSelection}
                           isNested={true}
+                          depth={depth + 1}
                         />
                       ))}
                       {provided.placeholder}
@@ -193,7 +198,7 @@ const DraggableItem = ({
                 {...provided.dragHandleProps}
                 onClick={() => onSelect(item.id)}
               >
-                <div className="grid-button">
+                <div className="grid-button" style={{ marginLeft: indentation }}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -279,6 +284,7 @@ const DraggableItem = ({
                           isSelected={isSelected}
                           onToggleSelection={onToggleSelection}
                           isNested={true}
+                          depth={depth + 1}
                         />
                       ))}
                       {provided.placeholder}
@@ -294,7 +300,7 @@ const DraggableItem = ({
               {...provided.dragHandleProps}
               onClick={() => onSelect(item.id)}
             >
-              <div className="grid-button">
+              <div className="grid-button" style={{ marginLeft: indentation }}>
                 <span className="chevron-spacer" aria-hidden="true"></span>
                 <Icon icon="grid-3x3" size={14} />
                 {isEditing ? (
