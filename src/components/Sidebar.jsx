@@ -135,6 +135,8 @@ const DraggableItem = ({
                   type="GRID"
                   renderClone={(provided, snapshot, rubric) => {
                     const cloneItem = item.children[rubric.source.index];
+                    const cloneIndentation = `${(depth + 1) * 1.5}rem`;
+                    const cloneHasChildren = cloneItem.children && cloneItem.children.length > 0;
                     return (
                       <div
                         ref={provided.innerRef}
@@ -146,8 +148,14 @@ const DraggableItem = ({
                         }}
                       >
                         <div className={`sortable-grid group`}>
-                          <div className="grid-button" style={{ marginLeft: '1.5rem' }}>
-                            <span className="chevron-spacer" aria-hidden="true"></span>
+                          <div className="grid-button" style={{ marginLeft: cloneIndentation }}>
+                            {cloneHasChildren ? (
+                              <button className="chevron-toggle-btn" disabled>
+                                <Icon icon="chevron-right" size={10} className="chevron-icon" />
+                              </button>
+                            ) : (
+                              <span className="chevron-spacer" aria-hidden="true"></span>
+                            )}
                             <Icon icon="grid-3x3" size={14} />
                             <span className="grid-name">{cloneItem.name}</span>
                           </div>
@@ -238,6 +246,8 @@ const DraggableItem = ({
                   type="GRID"
                   renderClone={(provided, snapshot, rubric) => {
                     const cloneItem = item.children[rubric.source.index];
+                    const cloneIndentation = `${(depth + 1) * 1.5}rem`;
+                    const cloneHasChildren = cloneItem.children && cloneItem.children.length > 0;
                     return (
                       <div
                         ref={provided.innerRef}
@@ -249,8 +259,14 @@ const DraggableItem = ({
                         }}
                       >
                         <div className={`sortable-grid group`}>
-                          <div className="grid-button" style={{ marginLeft: '1.5rem' }}>
-                            <span className="chevron-spacer" aria-hidden="true"></span>
+                          <div className="grid-button" style={{ marginLeft: cloneIndentation }}>
+                            {cloneHasChildren ? (
+                              <button className="chevron-toggle-btn" disabled>
+                                <Icon icon="chevron-right" size={10} className="chevron-icon" />
+                              </button>
+                            ) : (
+                              <span className="chevron-spacer" aria-hidden="true"></span>
+                            )}
                             <Icon icon="grid-3x3" size={14} />
                             <span className="grid-name">{cloneItem.name}</span>
                           </div>
