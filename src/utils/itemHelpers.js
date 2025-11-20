@@ -1,6 +1,6 @@
 // Utility functions for managing hierarchical items (folders and grids)
 
-const MAX_DEPTH = 3;
+const MAX_DEPTH = 4; // Allow up to 4 levels of nesting
 
 /**
  * Calculate the depth of an item in the tree

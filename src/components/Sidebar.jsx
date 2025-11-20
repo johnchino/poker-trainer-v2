@@ -185,7 +185,110 @@ const DraggableItem = ({
                 </Droppable>
               )}
             </div>
+          ) : isGrid && hasChildren ? (
+            // Grid with children (can be nested)
+            <div className="sortable-grid-container">
+              <div
+                className={`sortable-grid group ${isActive ? 'active' : ''}`}
+                {...provided.dragHandleProps}
+                onClick={() => onSelect(item.id)}
+              >
+                <div className="grid-button">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggle(item.id);
+                    }}
+                    className="chevron-toggle-btn"
+                    title={item.expanded ? "Collapse" : "Expand"}
+                  >
+                    <Icon icon={item.expanded ? "chevron-down" : "chevron-right"} size={10} className="chevron-icon" />
+                  </button>
+                  <Icon icon="grid-3x3" size={14} />
+                  {isEditing ? (
+                    <InlineEditInput
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onSave={handleSave}
+                      onKeyDown={handleKeyDown}
+                      className="grid-name-input"
+                    />
+                  ) : (
+                    <span className="grid-name">{item.name}</span>
+                  )}
+                </div>
+                <ItemActions
+                  canAdd={canAdd}
+                  hasChildren={hasChildren}
+                  childrenCount={item.children?.length || 0}
+                  itemType="grid"
+                  onAdd={() => onAddChild(item.id)}
+                  onRename={startEdit}
+                  onDelete={() => onDelete(item.id)}
+                />
+              </div>
+              {item.expanded && (
+                <Droppable
+                  droppableId={`grid-${item.id}`}
+                  type="GRID"
+                  renderClone={(provided, snapshot, rubric) => {
+                    const cloneItem = item.children[rubric.source.index];
+                    return (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        style={{
+                          ...provided.draggableProps.style,
+                          opacity: 0.8,
+                        }}
+                      >
+                        <div className={`sortable-grid group`}>
+                          <div className="grid-button" style={{ marginLeft: '1.5rem' }}>
+                            <span className="chevron-spacer" aria-hidden="true"></span>
+                            <Icon icon="grid-3x3" size={14} />
+                            <span className="grid-name">{cloneItem.name}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }}
+                >
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="grids-list"
+                      style={{
+                        backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
+                      }}
+                    >
+                      {item.children.map((child, childIndex) => (
+                        <DraggableItem
+                          key={child.id}
+                          item={child}
+                          index={childIndex}
+                          items={items}
+                          currentGrid={currentGrid}
+                          onSelect={onSelect}
+                          onToggle={onToggle}
+                          onRename={onRename}
+                          onDelete={onDelete}
+                          onAddChild={onAddChild}
+                          exportMode={exportMode}
+                          isSelected={isSelected}
+                          onToggleSelection={onToggleSelection}
+                          isNested={true}
+                        />
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              )}
+            </div>
           ) : (
+            // Grid without children
             <div
               className={`sortable-grid group ${isActive ? 'active' : ''}`}
               {...provided.dragHandleProps}
@@ -208,8 +311,8 @@ const DraggableItem = ({
               </div>
               <ItemActions
                 canAdd={canAdd}
-                hasChildren={false}
-                childrenCount={0}
+                hasChildren={hasChildren}
+                childrenCount={item.children?.length || 0}
                 itemType="grid"
                 onAdd={() => onAddChild(item.id)}
                 onRename={startEdit}
