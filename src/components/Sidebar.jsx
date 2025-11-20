@@ -96,7 +96,7 @@ const DraggableItem = ({
                 {...provided.dragHandleProps}
               >
                 <ExportCheckbox exportMode={exportMode} isSelected={isSelected} onToggle={() => onToggleSelection(item.id)} />
-                <button
+                <div
                   onKeyDown={handleKeyDown}
                   className="folder-toggle"
                   onClick={() => !isEditing && onToggle(item.id)}
@@ -114,7 +114,7 @@ const DraggableItem = ({
                   ) : (
                     <span className="folder-name">{item.name}</span>
                   )}
-                </button>
+                </div>
                 <ItemActions
                   canAdd={canAdd}
                   hasChildren={hasChildren}
