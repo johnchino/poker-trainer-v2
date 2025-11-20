@@ -72,7 +72,7 @@ const DraggableItem = ({
   const canAdd = canAddChild(item.id, items);
 
   // Calculate indentation based on depth (1.5rem per level)
-  const indentation = depth > 0 ? `${depth * 1.5}rem` : '0';
+  const indentation = depth > 0 ? `${depth * 1.5}rem` : null;
 
   const handleKeyDown = (e) => {
     e.stopPropagation();
@@ -401,13 +401,14 @@ export const Sidebar = ({
       return;
     }
 
-    // Case 2: Reordering within a folder
-    if (source.droppableId === destination.droppableId && source.droppableId.startsWith('folder-')) {
-      const folderId = source.droppableId.replace('folder-', '');
+    // Case 2: Reordering within a folder or grid
+    if (source.droppableId === destination.droppableId &&
+        (source.droppableId.startsWith('folder-') || source.droppableId.startsWith('grid-'))) {
+      const parentId = source.droppableId.replace('folder-', '').replace('grid-', '');
 
       const updateTree = (items) => {
         return items.map(item => {
-          if (item.id === folderId) {
+          if (item.id === parentId) {
             const reorderedChildren = reorder(item.children, source.index, destination.index).map((child, index) => ({
               ...child,
               order: index
@@ -427,7 +428,7 @@ export const Sidebar = ({
     }
 
     // Case 3: Moving between different droppables (future enhancement)
-    // For now, we'll ignore cross-folder moves to keep it simple
+    // For now, we'll ignore cross-folder/grid moves to keep it simple
   };
 
   return (
