@@ -353,7 +353,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 1rem 0.5rem 0;
   cursor: default !important;
   transition: background-color 0.2s;
   user-select: none;
@@ -379,11 +379,11 @@ body {
   cursor: default;
   text-align: left;
   min-width: 0;
-  pointer-events: none;
 }
 
-.grid-button > * {
-  pointer-events: auto;
+.grid-name {
+  pointer-events: none;
+  user-select: none;
 }
 
 .chevron-toggle-btn {

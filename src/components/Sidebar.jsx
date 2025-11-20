@@ -147,8 +147,8 @@ const DraggableItem = ({
                           opacity: 0.8,
                         }}
                       >
-                        <div className={`sortable-grid group`}>
-                          <div className="grid-button" style={{ marginLeft: cloneIndentation }}>
+                        <div className={`sortable-grid group`} style={{ paddingLeft: cloneIndentation ? `calc(1rem + ${cloneIndentation})` : '1rem' }}>
+                          <div className="grid-button">
                             {cloneHasChildren ? (
                               <div className="chevron-toggle-btn">
                                 <Icon icon="chevron-right" size={10} className="chevron-icon" />
@@ -205,8 +205,9 @@ const DraggableItem = ({
                 className={`sortable-grid group ${isActive ? 'active' : ''}`}
                 {...provided.dragHandleProps}
                 onClick={() => onSelect(item.id)}
+                style={{ paddingLeft: indentation ? `calc(1rem + ${indentation})` : '1rem' }}
               >
-                <div className="grid-button" style={{ marginLeft: indentation }}>
+                <div className="grid-button">
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
@@ -260,8 +261,8 @@ const DraggableItem = ({
                           opacity: 0.8,
                         }}
                       >
-                        <div className={`sortable-grid group`}>
-                          <div className="grid-button" style={{ marginLeft: cloneIndentation }}>
+                        <div className={`sortable-grid group`} style={{ paddingLeft: cloneIndentation ? `calc(1rem + ${cloneIndentation})` : '1rem' }}>
+                          <div className="grid-button">
                             {cloneHasChildren ? (
                               <div className="chevron-toggle-btn">
                                 <Icon icon="chevron-right" size={10} className="chevron-icon" />
@@ -317,8 +318,9 @@ const DraggableItem = ({
               className={`sortable-grid group ${isActive ? 'active' : ''}`}
               {...provided.dragHandleProps}
               onClick={() => onSelect(item.id)}
+              style={{ paddingLeft: indentation ? `calc(1rem + ${indentation})` : '1rem' }}
             >
-              <div className="grid-button" style={{ marginLeft: indentation }}>
+              <div className="grid-button">
                 <span className="chevron-spacer" aria-hidden="true"></span>
                 <Icon icon="grid-3x3" size={14} />
                 {isEditing ? (
