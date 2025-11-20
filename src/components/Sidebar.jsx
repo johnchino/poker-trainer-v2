@@ -150,9 +150,9 @@ const DraggableItem = ({
                         <div className={`sortable-grid group`}>
                           <div className="grid-button" style={{ marginLeft: cloneIndentation }}>
                             {cloneHasChildren ? (
-                              <button className="chevron-toggle-btn" disabled>
+                              <div className="chevron-toggle-btn">
                                 <Icon icon="chevron-right" size={10} className="chevron-icon" />
-                              </button>
+                              </div>
                             ) : (
                               <span className="chevron-spacer" aria-hidden="true"></span>
                             )}
@@ -207,16 +207,18 @@ const DraggableItem = ({
                 onClick={() => onSelect(item.id)}
               >
                 <div className="grid-button" style={{ marginLeft: indentation }}>
-                  <button
+                  <div
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggle(item.id);
                     }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                     className="chevron-toggle-btn"
                     title={item.expanded ? "Collapse" : "Expand"}
                   >
                     <Icon icon={item.expanded ? "chevron-down" : "chevron-right"} size={10} className="chevron-icon" />
-                  </button>
+                  </div>
                   <Icon icon="grid-3x3" size={14} />
                   {isEditing ? (
                     <InlineEditInput
@@ -261,9 +263,9 @@ const DraggableItem = ({
                         <div className={`sortable-grid group`}>
                           <div className="grid-button" style={{ marginLeft: cloneIndentation }}>
                             {cloneHasChildren ? (
-                              <button className="chevron-toggle-btn" disabled>
+                              <div className="chevron-toggle-btn">
                                 <Icon icon="chevron-right" size={10} className="chevron-icon" />
-                              </button>
+                              </div>
                             ) : (
                               <span className="chevron-spacer" aria-hidden="true"></span>
                             )}
