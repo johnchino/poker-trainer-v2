@@ -36,6 +36,8 @@ const ExportCheckbox = ({ exportMode, isSelected, onToggle }) => {
         onToggle();
       }}
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
       className="export-checkbox"
     />
   );
@@ -89,12 +91,14 @@ const DraggableItem = ({
           >
           {isFolder ? (
             <div className="sortable-folder">
-              <div className="folder-header group">
+              <div
+                className="folder-header group"
+                {...provided.dragHandleProps}
+              >
                 <ExportCheckbox exportMode={exportMode} isSelected={isSelected} onToggle={() => onToggleSelection(item.id)} />
                 <button
                   onKeyDown={handleKeyDown}
                   className="folder-toggle"
-                  {...provided.dragHandleProps}
                   onClick={() => !isEditing && onToggle(item.id)}
                 >
                   <Icon icon={item.expanded ? "chevron-down" : "chevron-right"} size={12} className="chevron-icon" />

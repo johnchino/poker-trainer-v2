@@ -26,13 +26,20 @@ export const ItemActions = ({
   };
 
   return (
-    <div className={`${itemType}-actions`} onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`${itemType}-actions`}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       {canAdd && (
         <button
           onClick={(e) => {
             e.stopPropagation();
             onAdd();
           }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           className="icon-btn"
           title="Add Grid"
         >
@@ -44,6 +51,8 @@ export const ItemActions = ({
           e.stopPropagation();
           onRename();
         }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         className="icon-btn"
         title="Rename"
       >
@@ -51,6 +60,8 @@ export const ItemActions = ({
       </button>
       <button
         onClick={handleDelete}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         className="icon-btn icon-btn-delete"
         title="Delete"
       >
