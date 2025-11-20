@@ -89,13 +89,14 @@ const DraggableItem = ({
           >
           {isFolder ? (
             <div className="sortable-folder">
-              <div
-                className="folder-header group"
-                {...provided.dragHandleProps}
-                onClick={() => !isEditing && onToggle(item.id)}
-              >
+              <div className="folder-header group">
                 <ExportCheckbox exportMode={exportMode} isSelected={isSelected} onToggle={() => onToggleSelection(item.id)} />
-                <button onKeyDown={handleKeyDown} className="folder-toggle">
+                <button
+                  onKeyDown={handleKeyDown}
+                  className="folder-toggle"
+                  {...provided.dragHandleProps}
+                  onClick={() => !isEditing && onToggle(item.id)}
+                >
                   <Icon icon={item.expanded ? "chevron-down" : "chevron-right"} size={12} className="chevron-icon" />
                   <Icon icon={item.expanded ? "folder-open" : "folder"} size={16} />
                   {isEditing ? (
