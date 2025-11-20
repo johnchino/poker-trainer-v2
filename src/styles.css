@@ -379,11 +379,11 @@ body {
   cursor: default;
   text-align: left;
   min-width: 0;
+  pointer-events: none;
 }
 
-/* Nested grids indentation - add margin to grid-button inside .grids-list */
-.grids-list .grid-button {
-  margin-left: 1.5rem;
+.grid-button > * {
+  pointer-events: auto;
 }
 
 .chevron-toggle-btn {
