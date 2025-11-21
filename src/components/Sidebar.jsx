@@ -130,9 +130,14 @@ const DraggableItem = ({
                 />
               </div>
               {item.expanded && hasChildren && (
-                <Droppable
-                  droppableId={`folder-${item.id}`}
-                  type="GRID"
+                <div
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Droppable
+                    droppableId={`folder-${item.id}`}
+                    type="GRID"
                   renderClone={(provided, snapshot, rubric) => {
                     const cloneItem = item.children[rubric.source.index];
                     const cloneIndentation = `${(depth + 1) * 1.5}rem`;
@@ -196,6 +201,7 @@ const DraggableItem = ({
                     </div>
                   )}
                 </Droppable>
+                </div>
               )}
             </div>
           ) : isGrid && hasChildren ? (
@@ -244,9 +250,14 @@ const DraggableItem = ({
                 />
               </div>
               {item.expanded && (
-                <Droppable
-                  droppableId={`grid-${item.id}`}
-                  type="GRID"
+                <div
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Droppable
+                    droppableId={`grid-${item.id}`}
+                    type="GRID"
                   renderClone={(provided, snapshot, rubric) => {
                     const cloneItem = item.children[rubric.source.index];
                     const cloneIndentation = `${(depth + 1) * 1.5}rem`;
@@ -310,6 +321,7 @@ const DraggableItem = ({
                     </div>
                   )}
                 </Droppable>
+                </div>
               )}
             </div>
           ) : (
