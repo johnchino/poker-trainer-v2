@@ -170,8 +170,6 @@ const DraggableItem = ({
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className="grids-list"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onPointerDown={(e) => e.stopPropagation()}
                       style={{
                         backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
                         display: item.expanded ? 'block' : 'none',
@@ -285,8 +283,6 @@ const DraggableItem = ({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className="grids-list"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
                     style={{
                       backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
                       display: item.expanded ? 'block' : 'none',
