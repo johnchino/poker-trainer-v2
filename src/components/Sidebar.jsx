@@ -209,11 +209,10 @@ const DraggableItem = ({
             <div className="sortable-grid-container">
               <div
                 className={`sortable-grid group ${isActive ? 'active' : ''}`}
-                {...provided.dragHandleProps}
                 onClick={() => onSelect(item.id)}
                 style={{ paddingLeft: indentation ? `calc(1rem + ${indentation})` : '1rem' }}
               >
-                <div className="grid-button">
+                <div className="grid-button" {...provided.dragHandleProps}>
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
@@ -328,11 +327,10 @@ const DraggableItem = ({
             // Grid without children
             <div
               className={`sortable-grid group ${isActive ? 'active' : ''}`}
-              {...provided.dragHandleProps}
               onClick={() => onSelect(item.id)}
               style={{ paddingLeft: indentation ? `calc(1rem + ${indentation})` : '1rem' }}
             >
-              <div className="grid-button">
+              <div className="grid-button" {...provided.dragHandleProps}>
                 <span className="chevron-spacer" aria-hidden="true"></span>
                 <Icon icon="grid-3x3" size={14} />
                 {isEditing ? (
