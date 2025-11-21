@@ -76,7 +76,8 @@ const DraggableItem = ({
 
   const handleKeyDown = (e) => {
     e.stopPropagation();
-    if (e.key === ' ' || e.code === 'Space') {
+    // Only prevent space key when NOT editing (to avoid triggering select on space)
+    if (!isEditing && (e.key === ' ' || e.code === 'Space')) {
       e.preventDefault();
     }
   };
