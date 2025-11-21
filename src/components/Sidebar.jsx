@@ -129,7 +129,7 @@ const DraggableItem = ({
                   onDelete={() => onDelete(item.id)}
                 />
               </div>
-              {item.expanded && hasChildren && (
+              {hasChildren && (
                 <Droppable
                   droppableId={`folder-${item.id}`}
                   type="GRID"
@@ -171,6 +171,7 @@ const DraggableItem = ({
                       className="grids-list"
                       style={{
                         backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
+                        display: item.expanded ? 'block' : 'none',
                       }}
                     >
                       {item.children.map((child, childIndex) => (
@@ -242,74 +243,73 @@ const DraggableItem = ({
                   onDelete={() => onDelete(item.id)}
                 />
               </div>
-              {item.expanded && (
-                <Droppable
-                  droppableId={`grid-${item.id}`}
-                  type="GRID"
-                  renderClone={(provided, snapshot, rubric) => {
-                    const cloneItem = item.children[rubric.source.index];
-                    const cloneIndentation = `${(depth + 1) * 1.5}rem`;
-                    const cloneHasChildren = cloneItem.children && cloneItem.children.length > 0;
-                    return (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        style={{
-                          ...provided.draggableProps.style,
-                          opacity: 0.8,
-                        }}
-                      >
-                        <div className={`sortable-grid group`} style={{ paddingLeft: cloneIndentation ? `calc(1rem + ${cloneIndentation})` : '1rem' }}>
-                          <div className="grid-button">
-                            {cloneHasChildren ? (
-                              <div className="chevron-toggle-btn">
-                                <Icon icon="chevron-right" size={10} className="chevron-icon" />
-                              </div>
-                            ) : (
-                              <span className="chevron-spacer" aria-hidden="true"></span>
-                            )}
-                            <Icon icon="grid-3x3" size={14} />
-                            <span className="grid-name">{cloneItem.name}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }}
-                >
-                  {(provided, snapshot) => (
+              <Droppable
+                droppableId={`grid-${item.id}`}
+                type="GRID"
+                renderClone={(provided, snapshot, rubric) => {
+                  const cloneItem = item.children[rubric.source.index];
+                  const cloneIndentation = `${(depth + 1) * 1.5}rem`;
+                  const cloneHasChildren = cloneItem.children && cloneItem.children.length > 0;
+                  return (
                     <div
                       ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className="grids-list"
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
                       style={{
-                        backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
+                        ...provided.draggableProps.style,
+                        opacity: 0.8,
                       }}
                     >
-                      {item.children.map((child, childIndex) => (
-                        <DraggableItem
-                          key={child.id}
-                          item={child}
-                          index={childIndex}
-                          items={items}
-                          currentGrid={currentGrid}
-                          onSelect={onSelect}
-                          onToggle={onToggle}
-                          onRename={onRename}
-                          onDelete={onDelete}
-                          onAddChild={onAddChild}
-                          exportMode={exportMode}
-                          isSelected={isSelected}
-                          onToggleSelection={onToggleSelection}
-                          isNested={true}
-                          depth={depth + 1}
-                        />
-                      ))}
-                      {provided.placeholder}
+                      <div className={`sortable-grid group`} style={{ paddingLeft: cloneIndentation ? `calc(1rem + ${cloneIndentation})` : '1rem' }}>
+                        <div className="grid-button">
+                          {cloneHasChildren ? (
+                            <div className="chevron-toggle-btn">
+                              <Icon icon="chevron-right" size={10} className="chevron-icon" />
+                            </div>
+                          ) : (
+                            <span className="chevron-spacer" aria-hidden="true"></span>
+                          )}
+                          <Icon icon="grid-3x3" size={14} />
+                          <span className="grid-name">{cloneItem.name}</span>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </Droppable>
-              )}
+                  );
+                }}
+              >
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="grids-list"
+                    style={{
+                      backgroundColor: snapshot.isDraggingOver ? 'rgba(93, 186, 25, 0.05)' : 'transparent',
+                      display: item.expanded ? 'block' : 'none',
+                    }}
+                  >
+                    {item.children.map((child, childIndex) => (
+                      <DraggableItem
+                        key={child.id}
+                        item={child}
+                        index={childIndex}
+                        items={items}
+                        currentGrid={currentGrid}
+                        onSelect={onSelect}
+                        onToggle={onToggle}
+                        onRename={onRename}
+                        onDelete={onDelete}
+                        onAddChild={onAddChild}
+                        exportMode={exportMode}
+                        isSelected={isSelected}
+                        onToggleSelection={onToggleSelection}
+                        isNested={true}
+                        depth={depth + 1}
+                      />
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
             </div>
           ) : (
             // Grid without children
